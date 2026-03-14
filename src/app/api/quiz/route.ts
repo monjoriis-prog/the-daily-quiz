@@ -1,6 +1,17 @@
+
 import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.STORAGE_URL || '',
+  token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN || '',
+});
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
 
 export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get('category');
@@ -9,6 +20,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Category required' }, { status: 400 });
   }
 
+  const today = getToday();
+  const cacheKey = `quiz:${today}:${category.toLowerCase()}`;
+
+  // Check cache first — same questions for everyone
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        questions: cached,
+        generatedAt: today,
+        cached: true,
+      });
+    }
+  } catch (e) {
+    console.error('Cache read failed:', e);
+  }
+
+  // Not cached — generate fresh questions
   if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'your-key-here') {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
   }
@@ -65,14 +94,26 @@ Keep the ENTIRE response concise. No markdown, no backticks.`,
       throw new Error('No quiz data found');
     }
 
-    let parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]);
     const valid = parsed.filter(
       (q: any) => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === 'number'
     );
 
+    // Save to cache — expires at midnight (86400 seconds max)
+    try {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const secondsUntilMidnight = Math.floor((midnight.getTime() - now.getTime()) / 1000);
+      await redis.set(cacheKey, JSON.stringify(valid), { ex: secondsUntilMidnight });
+    } catch (e) {
+      console.error('Cache write failed:', e);
+    }
+
     return NextResponse.json({
       questions: valid,
       generatedAt: new Date().toISOString(),
+      cached: false,
     });
 
   } catch (error: any) {
