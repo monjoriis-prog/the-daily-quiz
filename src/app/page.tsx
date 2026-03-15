@@ -22,6 +22,7 @@ export default function Home() {
   const [screen, setScreen] = useState<'home' | 'quiz' | 'results'>('home');
   const [category, setCategory] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showContext, setShowContext] = useState(false);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
@@ -54,6 +55,7 @@ export default function Home() {
     if (revealed || !questions) return;
     setSelected(idx);
     setRevealed(true);
+    setShowContext(false);
     if (idx === questions[currentQ].correct) {
       setScore(s => s + 200);
       setRoundCorrect(r => r + 1);
@@ -68,6 +70,7 @@ export default function Home() {
       setCurrentQ(c => c + 1);
       setSelected(null);
       setRevealed(false);
+      setShowContext(false);
     }
   };
 
@@ -75,6 +78,7 @@ export default function Home() {
     setScreen('home');
     setQuestions(null);
     setError(null);
+    setShowContext(false);
   };
 
   const shareText = questions && screen === 'results'
@@ -92,6 +96,10 @@ export default function Home() {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes expandDown {
+          from { opacity: 0; max-height: 0; }
+          to { opacity: 1; max-height: 200px; }
+        }
         .animate-slide-up {
           animation: slideUp 0.2s ease-out forwards;
         }
@@ -102,6 +110,10 @@ export default function Home() {
         .animate-slide-up-delay-2 {
           opacity: 0;
           animation: slideUp 0.2s ease-out 0.2s forwards;
+        }
+        .animate-expand {
+          animation: expandDown 0.2s ease-out forwards;
+          overflow: hidden;
         }
       `}</style>
 
@@ -203,6 +215,24 @@ export default function Home() {
                     {selected === questions[currentQ].correct ? 'Correct' : 'Incorrect'}
                   </p>
                   <p className="text-sm text-gray-500 font-sans leading-relaxed">{questions[currentQ].explanation}</p>
+
+                  {questions[currentQ].context && (
+                    <div className="mt-2">
+                      {!showContext ? (
+                        <button
+                          onClick={() => setShowContext(true)}
+                          className="text-xs font-sans font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          Learn more →
+                        </button>
+                      ) : (
+                        <div className="animate-expand mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1 font-sans">Background</p>
+                          <p className="text-sm text-gray-500 font-sans leading-relaxed">{questions[currentQ].context}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {questions[currentQ].perspective && (
@@ -243,7 +273,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Share section */}
             <div className="mb-8 p-5 bg-gray-50 rounded-lg border border-gray-200">
               <p className="text-[11px] font-semibold tracking-widest uppercase text-gray-400 font-sans mb-4">Challenge Your Friends</p>
               <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200 font-mono text-xs leading-relaxed text-gray-500 whitespace-pre-line">

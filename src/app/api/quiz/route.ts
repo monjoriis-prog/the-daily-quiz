@@ -69,11 +69,12 @@ RULES:
 - Keep explanations to 1 sentence
 - Mix stories from different world regions
 - Add a "perspective" field: one sentence on how coverage or prominence differs across world regions
-- The "headline" must NEVER reveal or hint at the correct answer — keep it vague, like a topic label (e.g. "Brazil Political Crisis" not "Bolsonaro Hospitalized with Pneumonia")
+- Add a "context" field: 2-3 sentences of background that helps someone understand WHY this story matters — the history, stakes, or implications. Written for someone who has never heard of this topic before.
+- The "headline" must NEVER reveal or hint at the correct answer — keep it vague, like a topic label
 - Do NOT include any HTML tags, citation tags, or markup in your response
 
 Return ONLY a JSON array. Each item:
-{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label that does NOT spoil the answer","perspective":"1 sentence on regional coverage differences"}
+{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label that does NOT spoil the answer","perspective":"1 sentence on regional coverage differences","context":"2-3 sentences of background context"}
 
 Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
         }],
@@ -109,6 +110,7 @@ Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
         explanation: stripCitations(q.explanation),
         headline: stripCitations(q.headline),
         perspective: stripCitations(q.perspective || ''),
+        context: stripCitations(q.context || ''),
         options: q.options.map((o: string) => stripCitations(o)),
       }));
 
