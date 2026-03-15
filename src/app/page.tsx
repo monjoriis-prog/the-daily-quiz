@@ -22,6 +22,24 @@ const LOADING_MESSAGES = [
   'Almost there…',
 ];
 
+function CountUp({ target, duration = 1200 }: { target: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (target === 0) return;
+    const steps = 30;
+    const increment = target / steps;
+    const interval = duration / steps;
+    let current = 0;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) { setCount(target); clearInterval(timer); }
+      else { setCount(Math.floor(current)); }
+    }, interval);
+    return () => clearInterval(timer);
+  }, [target]);
+  return <>{count}</>;
+}
+
 export default function Home() {
   const [loading, setLoading] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState(0);
@@ -41,6 +59,7 @@ export default function Home() {
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [confettiType, setConfettiType] = useState<'normal' | 'big' | 'perfect'>('normal');
   const [goldTrigger, setGoldTrigger] = useState(0);
+  const [cardRevealed, setCardRevealed] = useState(false);
   const timerRef = useRef<any>(null);
   const loadingMsgRef = useRef<any>(null);
 
@@ -51,7 +70,6 @@ export default function Home() {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
-  // Timer
   useEffect(() => {
     if (screen === 'quiz' && !revealed && questions && questions.length > 0) {
       setTimer(MAX_TIME);
@@ -66,7 +84,6 @@ export default function Home() {
     }
   }, [screen, currentQ, revealed, questions?.length]);
 
-  // Loading message rotation
   useEffect(() => {
     if (loading) {
       setLoadingMsg(0);
@@ -77,12 +94,18 @@ export default function Home() {
     }
   }, [loading]);
 
+  // Trigger card reveal animation on results screen
+  useEffect(() => {
+    if (screen === 'results') {
+      setCardRevealed(false);
+      setTimeout(() => setCardRevealed(true), 300);
+    }
+  }, [screen]);
+
   const fetchQuiz = async (cat: any, attempt: number = 0): Promise<any> => {
     const res = await fetch(`/api/quiz?category=${cat.label}`);
     const data = await res.json();
-
     if (data.error) {
-      // Auto-retry up to 2 times for rate limits
       if (attempt < 2 && (data.error.includes('rate limit') || data.error.includes('exceed'))) {
         await new Promise(r => setTimeout(r, 3000));
         return fetchQuiz(cat, attempt + 1);
@@ -97,7 +120,6 @@ export default function Home() {
     setLoading(cat.id);
     setError(null);
     setScreen('home');
-
     try {
       const data = await fetchQuiz(cat);
       setQuestions(data.questions);
@@ -120,16 +142,13 @@ export default function Home() {
     setSelected(idx);
     setRevealed(true);
     setShowContext(false);
-
     const isCorrect = idx === questions[currentQ].correct;
-
     if (isCorrect) {
       const timeBonus = Math.round(timer * (200 / MAX_TIME) * 0.3);
       const streakBonus = streak >= 2 ? 50 * streak : 0;
       setScore(s => s + 200 + timeBonus + streakBonus);
       setRoundCorrect(r => r + 1);
       setStreak(s => s + 1);
-
       const newStreak = streak + 1;
       if (newStreak >= 3) {
         try { playStreak(); } catch {}
@@ -173,7 +192,7 @@ export default function Home() {
   };
 
   const shareText = questions && screen === 'results'
-    ? `📰 The Daily Quiz — ${category?.label}\n${Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('')}\nScore: ${score} pts · ${roundCorrect}/${questions.length} correct\n\nCan you beat me? Take today's quiz!\nhttps://the-daily-quiz.vercel.app`
+    ? `📰 The Daily Quiz — ${category?.label}\n${Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('')}\nScore: ${score} pts · ${roundCorrect}/${questions.length} correct\n\nCan you beat me? Play the news.\nhttps://the-daily-quiz.vercel.app`
     : '';
 
   const handleCopy = async () => {
@@ -213,32 +232,33 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Georgia', serif" }}>
       <style jsx global>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes expandDown {
-          from { opacity: 0; max-height: 0; }
-          to { opacity: 1; max-height: 200px; }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 1; }
-        }
-        @keyframes flashGreen {
-          0% { background-color: rgba(5, 150, 105, 0.08); }
-          100% { background-color: transparent; }
-        }
-        @keyframes flashRed {
-          0% { background-color: rgba(220, 38, 38, 0.06); }
-          100% { background-color: transparent; }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes expandDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 200px; } }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes flashGreen { 0% { background-color: rgba(5,150,105,0.08); } 100% { background-color: transparent; } }
+        @keyframes flashRed { 0% { background-color: rgba(220,38,38,0.06); } 100% { background-color: transparent; } }
+        @keyframes cardEntrance { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes scoreReveal { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        @keyframes checkReveal { from { opacity: 0; transform: scale(0) rotate(-180deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
+        @keyframes lineGrow { from { width: 0; } to { width: 100%; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .animate-slide-up { animation: slideUp 0.2s ease-out forwards; }
         .animate-slide-up-delay { opacity: 0; animation: slideUp 0.2s ease-out 0.1s forwards; }
         .animate-slide-up-delay-2 { opacity: 0; animation: slideUp 0.2s ease-out 0.2s forwards; }
         .animate-expand { animation: expandDown 0.2s ease-out forwards; overflow: hidden; }
         .flash-correct { animation: flashGreen 0.4s ease-out; }
         .flash-wrong { animation: flashRed 0.4s ease-out; }
+        .card-enter { animation: cardEntrance 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .score-reveal { animation: scoreReveal 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.3s both; }
+        .check-reveal { animation: checkReveal 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .line-grow { animation: lineGrow 0.8s ease-out 0.2s both; }
+        .fade-in { animation: fadeIn 0.4s ease-out both; }
+        .shimmer-border {
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+          background-size: 200% 100%;
+          animation: shimmer 2s ease-in-out infinite;
+        }
       `}</style>
 
       <Confetti trigger={confettiTrigger} intensity={confettiType} />
@@ -256,17 +276,14 @@ export default function Home() {
             </div>
 
             {error && (
-              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-sans">
-                {error}
-              </div>
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-sans">{error}</div>
             )}
 
-            {/* Loading overlay */}
             {loading && (
               <div className="mt-6 mb-4 p-8 text-center">
                 <div className="flex justify-center gap-1.5 mb-4">
-                  {[0, 1, 2].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full bg-gray-900" style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                  {[0,1,2].map(i => (
+                    <div key={i} className="w-2 h-2 rounded-full bg-gray-900" style={{ animation: `pulse 1.2s ease-in-out ${i*0.2}s infinite` }} />
                   ))}
                 </div>
                 <p className="text-sm text-gray-500 font-sans">{LOADING_MESSAGES[loadingMsg]}</p>
@@ -275,12 +292,8 @@ export default function Home() {
 
             <div className="flex flex-col pt-2">
               {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => startQuiz(cat)}
-                  disabled={loading !== null}
-                  className="bg-white border-b border-gray-200 py-5 px-1 text-left flex items-center justify-between hover:bg-gray-50 transition-colors disabled:opacity-40"
-                >
+                <button key={cat.id} onClick={() => startQuiz(cat)} disabled={loading !== null}
+                  className="bg-white border-b border-gray-200 py-5 px-1 text-left flex items-center justify-between hover:bg-gray-50 transition-colors disabled:opacity-40">
                   <div>
                     <p className="text-[10px] font-semibold tracking-widest uppercase font-sans mb-1" style={{ color: cat.color }}>{cat.tag}</p>
                     <p className="text-xl font-semibold">{cat.label}</p>
@@ -297,9 +310,7 @@ export default function Home() {
               ))}
             </div>
 
-            <p className="text-center py-8 text-xs text-gray-300 font-sans">
-              Everyone plays the same quiz · Refreshes daily at midnight
-            </p>
+            <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at midnight</p>
           </div>
         )}
 
@@ -309,14 +320,11 @@ export default function Home() {
             <div className="flex items-center justify-between pb-3 mb-2 border-b border-gray-200">
               <button onClick={goHome} className="text-sm text-gray-400 font-sans">← Back</button>
               <div className="flex items-center gap-4">
-                {streak >= 2 && (
-                  <span className="text-xs font-semibold font-mono text-amber-600">{streak}× streak 🔥</span>
-                )}
+                {streak >= 2 && <span className="text-xs font-semibold font-mono text-amber-600">{streak}× streak 🔥</span>}
                 <span className="text-base font-semibold font-mono">{score} pts</span>
               </div>
             </div>
 
-            {/* Timer bar */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[11px] font-semibold tracking-widest uppercase font-sans" style={{ color: category?.color }}>
@@ -327,13 +335,8 @@ export default function Home() {
                 </span>
               </div>
               <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-1000 ease-linear"
-                  style={{
-                    width: revealed ? '0%' : `${(timer / MAX_TIME) * 100}%`,
-                    backgroundColor: timer <= 3 ? '#DC2626' : (category?.color || '#1A1A1A'),
-                  }}
-                />
+                <div className="h-full rounded-full transition-all duration-1000 ease-linear"
+                  style={{ width: revealed ? '0%' : `${(timer / MAX_TIME) * 100}%`, backgroundColor: timer <= 3 ? '#DC2626' : (category?.color || '#1A1A1A') }} />
               </div>
             </div>
 
@@ -353,15 +356,10 @@ export default function Home() {
                 if (revealed && isCorrect) classes = 'border-green-300 bg-green-50 text-green-900';
                 else if (revealed && isSelected) classes = 'border-red-300 bg-red-50 text-red-900';
                 else if (revealed) classes = 'border-gray-100 bg-white text-gray-300';
-
                 return (
-                  <button
-                    key={i}
-                    disabled={revealed}
-                    onClick={() => handleAnswer(i)}
+                  <button key={i} disabled={revealed} onClick={() => handleAnswer(i)}
                     className={`border-[1.5px] rounded-lg p-4 text-left text-[15px] font-sans font-medium flex items-center gap-3 transition-all duration-200 ${classes} ${!revealed ? 'hover:bg-gray-50 hover:border-gray-300 cursor-pointer' : 'cursor-default'}`}
-                    style={{ opacity: revealed && !isCorrect && !isSelected ? 0.45 : 1 }}
-                  >
+                    style={{ opacity: revealed && !isCorrect && !isSelected ? 0.45 : 1 }}>
                     <span className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold font-mono flex-shrink-0 ${revealed && isCorrect ? 'bg-green-700 text-white' : revealed && isSelected ? 'bg-red-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
                       {revealed && isCorrect ? '✓' : revealed && isSelected ? '✗' : String.fromCharCode(65 + i)}
                     </span>
@@ -375,19 +373,13 @@ export default function Home() {
               <div className="mt-6">
                 <div className="animate-slide-up bg-gray-50 rounded-lg p-4 mb-3 border border-gray-200">
                   <p className={`text-xs font-semibold uppercase tracking-wide mb-1 font-sans ${selected === questions[currentQ].correct ? 'text-green-600' : 'text-red-600'}`}>
-                    {selected === questions[currentQ].correct
-                      ? timer > 0 ? 'Correct — nice speed!' : 'Correct'
-                      : 'Incorrect'}
+                    {selected === questions[currentQ].correct ? timer > 0 ? 'Correct — nice speed!' : 'Correct' : 'Incorrect'}
                   </p>
                   <p className="text-sm text-gray-500 font-sans leading-relaxed">{questions[currentQ].explanation}</p>
-
                   {questions[currentQ].context && (
                     <div className="mt-2">
                       {!showContext ? (
-                        <button
-                          onClick={() => setShowContext(true)}
-                          className="text-xs font-sans font-semibold text-blue-600 hover:text-blue-800 transition-colors"
-                        >
+                        <button onClick={() => setShowContext(true)} className="text-xs font-sans font-semibold text-blue-600 hover:text-blue-800 transition-colors">
                           Learn more →
                         </button>
                       ) : (
@@ -399,7 +391,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
                 {questions[currentQ].perspective && (
                   <div className="animate-slide-up-delay bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200 flex gap-3">
                     <span className="text-lg">🌍</span>
@@ -409,7 +400,6 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
                 <button onClick={nextQuestion} className="animate-slide-up-delay-2 w-full py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
                   {currentQ + 1 >= questions.length ? 'See Results' : 'Next Question'}
                 </button>
@@ -430,7 +420,7 @@ export default function Home() {
             ) : (
               <div className="text-center pb-7 border-b-2 border-gray-900 mb-8">
                 <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase font-sans mb-3">{getResultTitle()}</p>
-                <p className="text-6xl font-semibold font-mono">{score}</p>
+                <p className="text-6xl font-semibold font-mono"><CountUp target={score} /></p>
                 <p className="text-sm text-gray-400 font-sans mt-1">{getResultMessage()}</p>
               </div>
             )}
@@ -447,22 +437,18 @@ export default function Home() {
               ))}
             </div>
 
+            {/* ── Share Card ── */}
             {roundCorrect === 0 ? (
               <div className="mb-8 p-5 bg-gray-50 rounded-lg border border-gray-200 text-center">
                 <p className="text-sm font-sans text-gray-500 mb-4">Think your friends would do better? Send them the quiz and find out.</p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("Think you know the news? Take today's quiz 👉 https://the-daily-quiz.vercel.app")}`, '_blank')}
-                    className="flex-1 py-3 rounded-lg text-white font-sans font-semibold text-sm"
-                    style={{ background: '#25D366' }}
-                  >
+                  <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("Think you know the news? Play the news. 👉 https://the-daily-quiz.vercel.app")}`, '_blank')}
+                    className="flex-1 py-3 rounded-lg text-white font-sans font-semibold text-sm" style={{ background: '#25D366' }}>
                     Send Quiz
                   </button>
-                  <button
-                    onClick={handleCopy}
+                  <button onClick={handleCopy}
                     className="flex-1 py-3 rounded-lg border-[1.5px] border-gray-200 font-sans font-semibold text-sm"
-                    style={{ background: copied ? '#059669' : '#FFF', color: copied ? '#FFF' : '#1A1A1A' }}
-                  >
+                    style={{ background: copied ? '#059669' : '#FFF', color: copied ? '#FFF' : '#1A1A1A' }}>
                     {copied ? '✓ Copied!' : '📋 Copy Link'}
                   </button>
                 </div>
@@ -471,91 +457,104 @@ export default function Home() {
               <div className="mb-8">
                 <p className="text-[11px] font-semibold tracking-widest uppercase text-gray-400 font-sans mb-4">Challenge Your Friends</p>
 
-                <div className="rounded-xl overflow-hidden mb-4 border border-gray-200" style={{ background: 'linear-gradient(145deg, #0f172a 0%, #1e293b 100%)' }}>
-                  <div className="h-1" style={{ background: category?.color || '#1A1A1A' }} />
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
+                {/* Animated Share Card */}
+                <div className={`rounded-2xl overflow-hidden mb-5 ${cardRevealed ? 'card-enter' : 'opacity-0'}`}
+                  style={{ background: 'linear-gradient(160deg, #0c1222 0%, #151e33 50%, #1a1a2e 100%)', boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.05)' }}>
+
+                  {/* Accent line */}
+                  <div className="h-[3px] relative overflow-hidden">
+                    <div className={cardRevealed ? 'line-grow' : ''} style={{ height: '100%', background: `linear-gradient(90deg, ${category?.color}, ${category?.color}88, ${category?.color})` }} />
+                  </div>
+
+                  <div className="p-7">
+                    {/* Header */}
+                    <div className={`flex items-start justify-between mb-8 ${cardRevealed ? 'fade-in' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>
                       <div>
-                        <p className="text-[10px] font-sans font-semibold tracking-widest text-slate-400 uppercase">{shortDate}</p>
-                        <p className="text-lg font-bold text-white mt-0.5" style={{ fontFamily: "'Georgia', serif" }}>The Daily Quiz</p>
+                        <p className="text-[10px] font-sans font-medium tracking-[3px] text-slate-500 uppercase">{shortDate}</p>
+                        <p className="text-xl font-bold text-white mt-1" style={{ fontFamily: "'Georgia', serif" }}>The Daily Quiz</p>
                       </div>
-                      <p className="text-[10px] font-sans font-semibold tracking-widest uppercase" style={{ color: category?.color }}>{category?.tag}</p>
-                    </div>
-
-                    <div className="text-center mb-6">
-                      <p className="text-5xl font-bold font-mono text-white">{score}</p>
-                      <p className="text-xs font-sans text-slate-400 mt-1">points</p>
-                    </div>
-
-                    <div className="flex justify-center gap-2 mb-6">
-                      {Array.from({ length: questions.length }, (_, i) => (
-                        <div
-                          key={i}
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-semibold"
-                          style={{
-                            background: i < roundCorrect ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)',
-                            border: i < roundCorrect ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(239,68,68,0.2)',
-                          }}
-                        >
-                          {i < roundCorrect ? '✓' : '✗'}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-center gap-8 text-center">
-                      <div>
-                        <p className="text-xl font-bold font-mono text-white">{roundCorrect}/{questions.length}</p>
-                        <p className="text-[10px] font-sans text-slate-500 uppercase tracking-wide">Correct</p>
-                      </div>
-                      <div className="w-px bg-slate-700" />
-                      <div>
-                        <p className="text-xl font-bold font-mono text-white">{Math.round((roundCorrect / questions.length) * 100)}%</p>
-                        <p className="text-[10px] font-sans text-slate-500 uppercase tracking-wide">Accuracy</p>
+                      <div className="text-right">
+                        <p className="text-[9px] font-sans font-bold tracking-[3px] uppercase px-3 py-1 rounded-full" style={{ color: category?.color, background: `${category?.color}15`, border: `1px solid ${category?.color}30` }}>
+                          {category?.tag}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-700 text-center">
-                      <p className="text-xs font-sans text-slate-400">Can you beat my score? → the-daily-quiz.vercel.app</p>
+                    {/* Score */}
+                    <div className={`text-center mb-8 ${cardRevealed ? 'score-reveal' : 'opacity-0'}`}>
+                      <p className="text-7xl font-bold font-mono text-white tracking-tight" style={{ textShadow: `0 0 40px ${category?.color}40` }}>
+                        <CountUp target={score} duration={1500} />
+                      </p>
+                      <p className="text-[11px] font-sans font-medium text-slate-500 mt-2 tracking-widest uppercase">Points</p>
+                    </div>
+
+                    {/* Answer blocks */}
+                    <div className="flex justify-center gap-2.5 mb-8">
+                      {Array.from({ length: questions.length }, (_, i) => {
+                        const correct = i < roundCorrect;
+                        return (
+                          <div key={i}
+                            className={cardRevealed ? 'check-reveal' : 'opacity-0'}
+                            style={{ animationDelay: `${0.5 + i * 0.1}s` }}>
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold"
+                              style={{
+                                background: correct ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.1)',
+                                border: correct ? '1.5px solid rgba(34,197,94,0.3)' : '1.5px solid rgba(239,68,68,0.2)',
+                                color: correct ? '#4ade80' : '#f87171',
+                              }}>
+                              {correct ? '✓' : '✗'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Stats */}
+                    <div className={`flex justify-center gap-10 text-center ${cardRevealed ? 'fade-in' : 'opacity-0'}`} style={{ animationDelay: '1s' }}>
+                      <div>
+                        <p className="text-2xl font-bold font-mono text-white">{roundCorrect}<span className="text-slate-600">/{questions.length}</span></p>
+                        <p className="text-[9px] font-sans text-slate-500 uppercase tracking-[2px] mt-1">Correct</p>
+                      </div>
+                      <div className="w-px bg-slate-800" />
+                      <div>
+                        <p className="text-2xl font-bold font-mono text-white">{Math.round((roundCorrect / questions.length) * 100)}<span className="text-slate-600">%</span></p>
+                        <p className="text-[9px] font-sans text-slate-500 uppercase tracking-[2px] mt-1">Accuracy</p>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className={`mt-8 pt-5 border-t border-slate-800/50 flex items-center justify-between ${cardRevealed ? 'fade-in' : 'opacity-0'}`} style={{ animationDelay: '1.2s' }}>
+                      <p className="text-[11px] font-sans text-slate-500">Play the news.</p>
+                      <p className="text-[11px] font-sans text-slate-600">the-daily-quiz.vercel.app</p>
                     </div>
                   </div>
                 </div>
 
+                {/* Share buttons */}
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  <button
-                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank')}
-                    className="py-3 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank')}
+                    className="py-3 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm flex items-center justify-center gap-2">
                     𝕏 Twitter
                   </button>
-                  <button
-                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')}
-                    className="py-3 rounded-lg text-white font-sans font-semibold text-sm flex items-center justify-center gap-2"
-                    style={{ background: '#25D366' }}
-                  >
+                  <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')}
+                    className="py-3 rounded-lg text-white font-sans font-semibold text-sm flex items-center justify-center gap-2" style={{ background: '#25D366' }}>
                     💬 WhatsApp
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(shareText)}`, '_blank')}
-                    className="py-3 rounded-lg text-white font-sans font-semibold text-sm flex items-center justify-center gap-2"
-                    style={{ background: '#1877F2' }}
-                  >
+                  <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(shareText)}`, '_blank')}
+                    className="py-3 rounded-lg text-white font-sans font-semibold text-sm flex items-center justify-center gap-2" style={{ background: '#1877F2' }}>
                     f Facebook
                   </button>
                   {hasNativeShare ? (
-                    <button
-                      onClick={handleNativeShare}
-                      className="py-3 rounded-lg border-[1.5px] border-gray-200 text-gray-900 font-sans font-semibold text-sm flex items-center justify-center gap-2"
-                    >
+                    <button onClick={handleNativeShare}
+                      className="py-3 rounded-lg border-[1.5px] border-gray-200 text-gray-900 font-sans font-semibold text-sm flex items-center justify-center gap-2">
                       📤 Share
                     </button>
                   ) : (
-                    <button
-                      onClick={handleCopy}
+                    <button onClick={handleCopy}
                       className="py-3 rounded-lg border-[1.5px] border-gray-200 font-sans font-semibold text-sm flex items-center justify-center gap-2"
-                      style={{ background: copied ? '#059669' : '#FFF', color: copied ? '#FFF' : '#1A1A1A' }}
-                    >
+                      style={{ background: copied ? '#059669' : '#FFF', color: copied ? '#FFF' : '#1A1A1A' }}>
                       {copied ? '✓ Copied!' : '📋 Copy'}
                     </button>
                   )}
@@ -566,9 +565,7 @@ export default function Home() {
             <div className="mb-8">
               <p className="text-[11px] font-semibold tracking-widest uppercase text-gray-400 font-sans mb-3 pb-2 border-b border-gray-200">Stories Covered</p>
               {questions.map((q, i) => (
-                <div key={i} className="py-3 border-b border-gray-100 text-[15px] font-medium">
-                  {q.headline || q.question}
-                </div>
+                <div key={i} className="py-3 border-b border-gray-100 text-[15px] font-medium">{q.headline || q.question}</div>
               ))}
             </div>
 
