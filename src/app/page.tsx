@@ -139,7 +139,7 @@ export default function Home() {
             <div className="text-center pt-12 pb-5 border-b-2 border-gray-900">
               <p className="text-xs font-semibold tracking-widest text-gray-400 mb-3 font-sans uppercase">{today}</p>
               <h1 className="text-5xl font-bold mb-1 tracking-tight">The Daily Quiz</h1>
-              <p className="text-sm text-gray-400 font-sans">Same questions for everyone · New stories every day</p>
+              <p className="text-sm text-gray-400 font-sans">Play the news.</p>
             </div>
 
             {error && (
