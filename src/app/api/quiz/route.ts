@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
@@ -68,10 +69,11 @@ RULES:
 - Keep explanations to 1 sentence
 - Mix stories from different world regions
 - Add a "perspective" field: one sentence on how coverage or prominence differs across world regions
+- The "headline" must NEVER reveal or hint at the correct answer — keep it vague, like a topic label (e.g. "Brazil Political Crisis" not "Bolsonaro Hospitalized with Pneumonia")
 - Do NOT include any HTML tags, citation tags, or markup in your response
 
 Return ONLY a JSON array. Each item:
-{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short headline","perspective":"1 sentence on regional coverage differences"}
+{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label that does NOT spoil the answer","perspective":"1 sentence on regional coverage differences"}
 
 Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
         }],
