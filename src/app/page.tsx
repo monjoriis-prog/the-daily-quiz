@@ -15,8 +15,16 @@ const CATEGORIES = [
 
 const MAX_TIME = 12;
 
+const LOADING_MESSAGES = [
+  'Scanning the headlines…',
+  'Gathering stories from around the world…',
+  'Crafting your questions…',
+  'Almost there…',
+];
+
 export default function Home() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadingMsg, setLoadingMsg] = useState(0);
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -34,6 +42,7 @@ export default function Home() {
   const [confettiType, setConfettiType] = useState<'normal' | 'big' | 'perfect'>('normal');
   const [goldTrigger, setGoldTrigger] = useState(0);
   const timerRef = useRef<any>(null);
+  const loadingMsgRef = useRef<any>(null);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
@@ -49,7 +58,7 @@ export default function Home() {
       timerRef.current = setInterval(() => {
         setTimer((t) => {
           if (t <= 1) { clearInterval(timerRef.current); return 0; }
-          if (t <= 4) { playTick().catch(() => {}); }
+          if (t <= 4) { try { playTick(); } catch {} }
           return t - 1;
         });
       }, 1000);
@@ -57,16 +66,40 @@ export default function Home() {
     }
   }, [screen, currentQ, revealed, questions?.length]);
 
+  // Loading message rotation
+  useEffect(() => {
+    if (loading) {
+      setLoadingMsg(0);
+      loadingMsgRef.current = setInterval(() => {
+        setLoadingMsg(m => (m + 1) % LOADING_MESSAGES.length);
+      }, 3000);
+      return () => clearInterval(loadingMsgRef.current);
+    }
+  }, [loading]);
+
+  const fetchQuiz = async (cat: any, attempt: number = 0): Promise<any> => {
+    const res = await fetch(`/api/quiz?category=${cat.label}`);
+    const data = await res.json();
+
+    if (data.error) {
+      // Auto-retry up to 2 times for rate limits
+      if (attempt < 2 && (data.error.includes('rate limit') || data.error.includes('exceed'))) {
+        await new Promise(r => setTimeout(r, 3000));
+        return fetchQuiz(cat, attempt + 1);
+      }
+      throw new Error(data.error);
+    }
+    return data;
+  };
+
   const startQuiz = async (cat: any) => {
     setCategory(cat);
     setLoading(cat.id);
     setError(null);
+    setScreen('home');
 
     try {
-      const res = await fetch(`/api/quiz?category=${cat.label}`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
+      const data = await fetchQuiz(cat);
       setQuestions(data.questions);
       setCurrentQ(0);
       setSelected(null);
@@ -76,14 +109,7 @@ export default function Home() {
       setStreak(0);
       setScreen('quiz');
     } catch (e: any) {
-      const msg = e.message || '';
-      if (msg.includes('rate limit') || msg.includes('exceed')) {
-        setError('The quiz is warming up. Please try again in a moment.');
-      } else if (msg.includes('API key')) {
-        setError('Something went wrong on our end. Please try again later.');
-      } else {
-        setError('Couldn\'t load the quiz right now. Try again in a moment.');
-      }
+      setError('Couldn\'t load the quiz right now. Try again in a moment.');
     }
     setLoading(null);
   };
@@ -104,31 +130,29 @@ export default function Home() {
       setRoundCorrect(r => r + 1);
       setStreak(s => s + 1);
 
-      // Sound + confetti
       const newStreak = streak + 1;
       if (newStreak >= 3) {
-        playStreak().catch(() => {});
+        try { playStreak(); } catch {}
         setConfettiType('big');
       } else {
-        playCorrect().catch(() => {});
+        try { playCorrect(); } catch {}
         setConfettiType('normal');
       }
       setConfettiTrigger(t => t + 1);
     } else {
       setStreak(0);
-      playWrong().catch(() => {});
+      try { playWrong(); } catch {}
     }
   };
 
   const nextQuestion = () => {
     if (!questions) return;
     if (currentQ + 1 >= questions.length) {
-      // Quiz complete
       if (roundCorrect === questions.length) {
-        playPerfect().catch(() => {});
+        try { playPerfect(); } catch {}
         setGoldTrigger(t => t + 1);
       } else {
-        playComplete().catch(() => {});
+        try { playComplete(); } catch {}
       }
       setScreen('results');
     } else {
@@ -145,6 +169,7 @@ export default function Home() {
     setError(null);
     setShowContext(false);
     setCopied(false);
+    clearInterval(timerRef.current);
   };
 
   const shareText = questions && screen === 'results'
@@ -152,14 +177,14 @@ export default function Home() {
     : '';
 
   const handleCopy = async () => {
-    try { await navigator.clipboard.writeText(shareText); } catch { }
+    try { await navigator.clipboard.writeText(shareText); } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleNativeShare = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: 'The Daily Quiz', text: shareText }); } catch { }
+      try { await navigator.share({ title: 'The Daily Quiz', text: shareText }); } catch {}
     }
   };
 
@@ -168,8 +193,9 @@ export default function Home() {
   const getResultTitle = () => {
     if (!questions) return '';
     if (roundCorrect === questions.length) return '🏆 Perfect Score!';
-    if (roundCorrect >= 3) return '🧠 Certified News Buff';
-    if (roundCorrect >= 2) return '📰 Getting There';
+    if (roundCorrect >= 5) return '🧠 Certified News Buff';
+    if (roundCorrect >= 4) return '📰 Sharp Mind';
+    if (roundCorrect >= 3) return '📰 Getting There';
     if (roundCorrect >= 1) return '🌱 Room to Grow';
     return '';
   };
@@ -177,9 +203,10 @@ export default function Home() {
   const getResultMessage = () => {
     if (!questions) return '';
     if (roundCorrect === questions.length) return 'Flawless. You\'re officially the most informed person in the room.';
-    if (roundCorrect >= 3) return 'Impressive — you clearly know what\'s happening in the world.';
-    if (roundCorrect >= 2) return 'Not bad! A few more rounds and you\'ll be a pro.';
-    if (roundCorrect >= 1) return 'Hey, one is better than none. Come back tomorrow and level up.';
+    if (roundCorrect >= 5) return 'Impressive — you clearly know what\'s happening in the world.';
+    if (roundCorrect >= 4) return 'Great work! You\'re well informed.';
+    if (roundCorrect >= 3) return 'Not bad! A few more rounds and you\'ll be a pro.';
+    if (roundCorrect >= 1) return 'Hey, that\'s a start. Come back tomorrow and level up.';
     return '';
   };
 
@@ -193,6 +220,10 @@ export default function Home() {
         @keyframes expandDown {
           from { opacity: 0; max-height: 0; }
           to { opacity: 1; max-height: 200px; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
         }
         @keyframes flashGreen {
           0% { background-color: rgba(5, 150, 105, 0.08); }
@@ -230,13 +261,25 @@ export default function Home() {
               </div>
             )}
 
+            {/* Loading overlay */}
+            {loading && (
+              <div className="mt-6 mb-4 p-8 text-center">
+                <div className="flex justify-center gap-1.5 mb-4">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="w-2 h-2 rounded-full bg-gray-900" style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                  ))}
+                </div>
+                <p className="text-sm text-gray-500 font-sans">{LOADING_MESSAGES[loadingMsg]}</p>
+              </div>
+            )}
+
             <div className="flex flex-col pt-2">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => startQuiz(cat)}
                   disabled={loading !== null}
-                  className="bg-white border-b border-gray-200 py-5 px-1 text-left flex items-center justify-between hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="bg-white border-b border-gray-200 py-5 px-1 text-left flex items-center justify-between hover:bg-gray-50 transition-colors disabled:opacity-40"
                 >
                   <div>
                     <p className="text-[10px] font-semibold tracking-widest uppercase font-sans mb-1" style={{ color: cat.color }}>{cat.tag}</p>
@@ -244,7 +287,7 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-3">
                     {loading === cat.id ? (
-                      <span className="text-xs text-gray-400 font-sans">Loading…</span>
+                      <span className="text-xs font-semibold font-sans" style={{ color: cat.color }}>Loading…</span>
                     ) : (
                       <span className="text-xs text-gray-300 font-sans">6 questions</span>
                     )}
@@ -288,7 +331,7 @@ export default function Home() {
                   className="h-full rounded-full transition-all duration-1000 ease-linear"
                   style={{
                     width: revealed ? '0%' : `${(timer / MAX_TIME) * 100}%`,
-                    backgroundColor: timer <= 3 ? '#DC2626' : category?.color || '#1A1A1A',
+                    backgroundColor: timer <= 3 ? '#DC2626' : (category?.color || '#1A1A1A'),
                   }}
                 />
               </div>
@@ -378,16 +421,13 @@ export default function Home() {
         {/* ═══ RESULTS ═══ */}
         {screen === 'results' && questions && (
           <div className="pt-12">
-            {/* Smart header based on score */}
             {roundCorrect === 0 ? (
-              /* 0 correct — encouraging, no share pressure */
               <div className="text-center pb-7 border-b-2 border-gray-900 mb-8">
                 <p className="text-4xl mb-3">💪</p>
                 <h2 className="text-2xl font-bold mb-2">Tough round!</h2>
                 <p className="text-sm text-gray-400 font-sans">The news moves fast — come back tomorrow and show it who's boss.</p>
               </div>
             ) : (
-              /* 1+ correct — show score with title */
               <div className="text-center pb-7 border-b-2 border-gray-900 mb-8">
                 <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase font-sans mb-3">{getResultTitle()}</p>
                 <p className="text-6xl font-semibold font-mono">{score}</p>
@@ -395,7 +435,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Stats — always show */}
             <div className="grid grid-cols-2 gap-px bg-gray-200 rounded-lg overflow-hidden mb-8">
               {[
                 { label: 'Correct', value: `${roundCorrect}/${questions.length}` },
@@ -408,13 +447,12 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Share section — different for 0 vs 1+ */}
             {roundCorrect === 0 ? (
               <div className="mb-8 p-5 bg-gray-50 rounded-lg border border-gray-200 text-center">
                 <p className="text-sm font-sans text-gray-500 mb-4">Think your friends would do better? Send them the quiz and find out.</p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent('Think you know the news? Take today\'s quiz 👉 https://the-daily-quiz.vercel.app')}`, '_blank')}
+                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent("Think you know the news? Take today's quiz 👉 https://the-daily-quiz.vercel.app")}`, '_blank')}
                     className="flex-1 py-3 rounded-lg text-white font-sans font-semibold text-sm"
                     style={{ background: '#25D366' }}
                   >
@@ -453,7 +491,7 @@ export default function Home() {
                       {Array.from({ length: questions.length }, (_, i) => (
                         <div
                           key={i}
-                          className="w-12 h-12 rounded-lg flex items-center justify-center text-lg font-semibold"
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-semibold"
                           style={{
                             background: i < roundCorrect ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)',
                             border: i < roundCorrect ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(239,68,68,0.2)',

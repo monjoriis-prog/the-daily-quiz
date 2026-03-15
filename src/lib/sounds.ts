@@ -1,85 +1,61 @@
-import * as Tone from 'tone';
+const AudioContext = typeof window !== 'undefined'
+  ? (window.AudioContext || (window as any).webkitAudioContext)
+  : null;
 
-let initialized = false;
+let ctx: AudioContext | null = null;
 
-async function init() {
-  if (initialized) return;
-  await Tone.start();
-  initialized = true;
+function getCtx(): AudioContext | null {
+  if (!AudioContext) return null;
+  if (!ctx) ctx = new AudioContext();
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
 }
 
-export async function playCorrect() {
-  await init();
-  const synth = new Tone.Synth({
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 },
-    volume: -12,
-  }).toDestination();
-  synth.triggerAttackRelease('E5', '0.1');
-  setTimeout(() => synth.triggerAttackRelease('G5', '0.12'), 80);
-  setTimeout(() => synth.dispose(), 500);
+function beep(freq: number, duration: number, volume: number, delay: number = 0, type: OscillatorType = 'sine') {
+  const c = getCtx();
+  if (!c) return;
+  const osc = c.createOscillator();
+  const gain = c.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, c.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + duration);
+  osc.connect(gain);
+  gain.connect(c.destination);
+  osc.start(c.currentTime + delay);
+  osc.stop(c.currentTime + delay + duration);
 }
 
-export async function playWrong() {
-  await init();
-  const synth = new Tone.Synth({
-    oscillator: { type: 'triangle' },
-    envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.2 },
-    volume: -18,
-  }).toDestination();
-  synth.triggerAttackRelease('C4', '0.2');
-  setTimeout(() => synth.triggerAttackRelease('B3', '0.25'), 120);
-  setTimeout(() => synth.dispose(), 600);
+export function playCorrect() {
+  beep(659, 0.12, 0.15, 0);
+  beep(784, 0.15, 0.15, 0.08);
 }
 
-export async function playStreak() {
-  await init();
-  const synth = new Tone.Synth({
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.01, decay: 0.12, sustain: 0, release: 0.1 },
-    volume: -10,
-  }).toDestination();
-  synth.triggerAttackRelease('C5', '0.1');
-  setTimeout(() => synth.triggerAttackRelease('E5', '0.1'), 70);
-  setTimeout(() => synth.triggerAttackRelease('G5', '0.1'), 140);
-  setTimeout(() => synth.triggerAttackRelease('C6', '0.15'), 210);
-  setTimeout(() => synth.dispose(), 700);
+export function playWrong() {
+  beep(262, 0.2, 0.08, 0, 'triangle');
+  beep(247, 0.25, 0.08, 0.12, 'triangle');
 }
 
-export async function playComplete() {
-  await init();
-  const synth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 0.3 },
-    volume: -10,
-  }).toDestination();
-  synth.triggerAttackRelease(['C5', 'E5', 'G5'], '0.3');
-  setTimeout(() => synth.triggerAttackRelease(['D5', 'F5', 'A5'], '0.3'), 200);
-  setTimeout(() => synth.triggerAttackRelease(['E5', 'G5', 'C6'], '0.5'), 400);
-  setTimeout(() => synth.dispose(), 1200);
+export function playStreak() {
+  beep(523, 0.1, 0.15, 0);
+  beep(659, 0.1, 0.15, 0.07);
+  beep(784, 0.1, 0.15, 0.14);
+  beep(1047, 0.18, 0.15, 0.21);
 }
 
-export async function playTick() {
-  await init();
-  const synth = new Tone.Synth({
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.02 },
-    volume: -25,
-  }).toDestination();
-  synth.triggerAttackRelease('A5', '0.02');
-  setTimeout(() => synth.dispose(), 200);
+export function playComplete() {
+  beep(523, 0.2, 0.12, 0);
+  beep(659, 0.2, 0.12, 0.15);
+  beep(784, 0.3, 0.12, 0.3);
 }
 
-export async function playPerfect() {
-  await init();
-  const synth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.01, decay: 0.3, sustain: 0.15, release: 0.4 },
-    volume: -8,
-  }).toDestination();
-  synth.triggerAttackRelease(['C5', 'E5'], '0.2');
-  setTimeout(() => synth.triggerAttackRelease(['E5', 'G5'], '0.2'), 150);
-  setTimeout(() => synth.triggerAttackRelease(['G5', 'C6'], '0.2'), 300);
-  setTimeout(() => synth.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '0.6'), 450);
-  setTimeout(() => synth.dispose(), 1500);
+export function playPerfect() {
+  beep(523, 0.15, 0.15, 0);
+  beep(659, 0.15, 0.15, 0.1);
+  beep(784, 0.15, 0.15, 0.2);
+  beep(1047, 0.4, 0.18, 0.3);
+}
+
+export function playTick() {
+  beep(880, 0.03, 0.05);
 }
