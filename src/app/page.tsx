@@ -35,7 +35,6 @@ export default function Home() {
     try {
       const res = await fetch(`/api/quiz?category=${cat.label}`);
       const data = await res.json();
-
       if (data.error) throw new Error(data.error);
 
       setQuestions(data.questions);
@@ -78,8 +77,34 @@ export default function Home() {
     setError(null);
   };
 
+  const shareText = questions && screen === 'results'
+    ? `📰 The Daily Quiz — ${category?.label}\n${Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('')}\nScore: ${score} pts · ${roundCorrect}/${questions.length} correct\n\nCan you beat me? Take today's quiz!`
+    : '';
+
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(shareText); } catch { }
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Georgia', serif" }}>
+      <style jsx global>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slideUp 0.2s ease-out forwards;
+        }
+        .animate-slide-up-delay {
+          opacity: 0;
+          animation: slideUp 0.2s ease-out 0.1s forwards;
+        }
+        .animate-slide-up-delay-2 {
+          opacity: 0;
+          animation: slideUp 0.2s ease-out 0.2s forwards;
+        }
+      `}</style>
+
       <div className="max-w-xl mx-auto px-5">
 
         {screen === 'home' && (
@@ -159,7 +184,7 @@ export default function Home() {
                     key={i}
                     disabled={revealed}
                     onClick={() => handleAnswer(i)}
-                    className={`border-[1.5px] rounded-lg p-4 text-left text-[15px] font-sans font-medium flex items-center gap-3 transition-all ${classes} ${!revealed ? 'hover:bg-gray-50 hover:border-gray-300 cursor-pointer' : 'cursor-default'}`}
+                    className={`border-[1.5px] rounded-lg p-4 text-left text-[15px] font-sans font-medium flex items-center gap-3 transition-all duration-200 ${classes} ${!revealed ? 'hover:bg-gray-50 hover:border-gray-300 cursor-pointer' : 'cursor-default'}`}
                     style={{ opacity: revealed && !isCorrect && !isSelected ? 0.45 : 1 }}
                   >
                     <span className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold font-mono flex-shrink-0 ${revealed && isCorrect ? 'bg-green-700 text-white' : revealed && isSelected ? 'bg-red-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
@@ -173,7 +198,7 @@ export default function Home() {
 
             {revealed && (
               <div className="mt-6">
-                <div className="bg-gray-50 rounded-lg p-4 mb-3 border border-gray-200">
+                <div className="animate-slide-up bg-gray-50 rounded-lg p-4 mb-3 border border-gray-200">
                   <p className={`text-xs font-semibold uppercase tracking-wide mb-1 font-sans ${selected === questions[currentQ].correct ? 'text-green-600' : 'text-red-600'}`}>
                     {selected === questions[currentQ].correct ? 'Correct' : 'Incorrect'}
                   </p>
@@ -181,7 +206,7 @@ export default function Home() {
                 </div>
 
                 {questions[currentQ].perspective && (
-                  <div className="bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200 flex gap-3">
+                  <div className="animate-slide-up-delay bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200 flex gap-3">
                     <span className="text-lg">🌍</span>
                     <div>
                       <p className="text-[11px] font-semibold text-amber-800 uppercase tracking-wide mb-1 font-sans">Global Perspective</p>
@@ -190,7 +215,7 @@ export default function Home() {
                   </div>
                 )}
 
-                <button onClick={nextQuestion} className="w-full py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
+                <button onClick={nextQuestion} className="animate-slide-up-delay-2 w-full py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
                   {currentQ + 1 >= questions.length ? 'See Results' : 'Next Question'}
                 </button>
               </div>
@@ -216,6 +241,22 @@ export default function Home() {
                   <p className="text-[11px] text-gray-400 uppercase tracking-wide font-sans">{s.label}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Share section */}
+            <div className="mb-8 p-5 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-[11px] font-semibold tracking-widest uppercase text-gray-400 font-sans mb-4">Challenge Your Friends</p>
+              <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200 font-mono text-xs leading-relaxed text-gray-500 whitespace-pre-line">
+                {shareText}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank')} className="flex-1 py-3 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm">
+                  Share on 𝕏
+                </button>
+                <button onClick={handleCopy} className="flex-1 py-3 rounded-lg border-[1.5px] border-gray-200 text-gray-900 font-sans font-semibold text-sm">
+                  Copy
+                </button>
+              </div>
             </div>
 
             <div className="mb-8">
