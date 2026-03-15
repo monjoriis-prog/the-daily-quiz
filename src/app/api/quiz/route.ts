@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 
@@ -13,6 +12,10 @@ function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
+function stripCitations(text: string): string {
+  return text.replace(/<\/?cite[^>]*>/g, '').replace(/<\/?antml:cite[^>]*>/g, '');
+}
+
 export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get('category');
 
@@ -23,7 +26,6 @@ export async function GET(request: NextRequest) {
   const today = getToday();
   const cacheKey = `quiz:${today}:${category.toLowerCase()}`;
 
-  // Check cache first — same questions for everyone
   try {
     const cached = await redis.get(cacheKey);
     if (cached) {
@@ -37,7 +39,6 @@ export async function GET(request: NextRequest) {
     console.error('Cache read failed:', e);
   }
 
-  // Not cached — generate fresh questions
   if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'your-key-here') {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
   }
@@ -67,11 +68,12 @@ RULES:
 - Keep explanations to 1 sentence
 - Mix stories from different world regions
 - Add a "perspective" field: one sentence on how coverage or prominence differs across world regions
+- Do NOT include any HTML tags, citation tags, or markup in your response
 
 Return ONLY a JSON array. Each item:
 {"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short headline","perspective":"1 sentence on regional coverage differences"}
 
-Keep the ENTIRE response concise. No markdown, no backticks.`,
+Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
         }],
       }),
     });
@@ -95,11 +97,19 @@ Keep the ENTIRE response concise. No markdown, no backticks.`,
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    const valid = parsed.filter(
-      (q: any) => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === 'number'
-    );
+    const valid = parsed
+      .filter(
+        (q: any) => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === 'number'
+      )
+      .map((q: any) => ({
+        ...q,
+        question: stripCitations(q.question),
+        explanation: stripCitations(q.explanation),
+        headline: stripCitations(q.headline),
+        perspective: stripCitations(q.perspective || ''),
+        options: q.options.map((o: string) => stripCitations(o)),
+      }));
 
-    // Save to cache — expires at midnight (86400 seconds max)
     try {
       const now = new Date();
       const midnight = new Date(now);
