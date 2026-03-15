@@ -246,7 +246,7 @@ export default function Home() {
                     {loading === cat.id ? (
                       <span className="text-xs text-gray-400 font-sans">Loading…</span>
                     ) : (
-                      <span className="text-xs text-gray-300 font-sans">4 questions</span>
+                      <span className="text-xs text-gray-300 font-sans">6 questions</span>
                     )}
                     <span className="text-gray-300 text-lg">→</span>
                   </div>
