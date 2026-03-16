@@ -10,7 +10,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dailyquiz2026';
 const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 // GET: Fetch all pending questions for review

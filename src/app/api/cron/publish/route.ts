@@ -9,7 +9,7 @@ const redis = new Redis({
 const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 export async function GET(request: Request) {
