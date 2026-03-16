@@ -13,7 +13,7 @@ const CATEGORIES = [
   { id: 'entertainment', label: 'Culture', tag: 'CULTURE', color: '#7C3AED' },
 ];
 
-const MAX_TIME = 12;
+const MAX_TIME = 15;
 const LOADING_MESSAGES = ['Scanning the headlines…', 'Gathering stories from around the world…', 'Crafting your questions…', 'Almost there…'];
 
 function CountUp({ target, duration = 1200 }: { target: number; duration?: number }) {

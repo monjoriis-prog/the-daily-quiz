@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
           role: 'user',
           content: `Search for the latest ${category} news from today or this week using DIVERSE international sources: CNN, BBC, Al Jazeera, Reuters, AP, France 24, Deutsche Welle, NHK, The Guardian, and others.
 
-Create exactly 6 quiz questions based on REAL current news stories.
+ based on REAL current news stories. Create exactly 6 quiz questions. Focus on MAJOR stories that most people would have heard about — avoid obscure or overly technical details. Questions should test general awareness, not insider knowledge.
 
 RULES:
 - Questions about verifiable public facts, NOT opinions
