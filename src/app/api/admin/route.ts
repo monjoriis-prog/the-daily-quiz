@@ -7,7 +7,7 @@ const redis = new Redis({
 });
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dailyquiz2026';
-const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
+const CATS = ['world', 'tech', 'science', 'business', 'sports', 'culture', 'politics'];
 
 function getToday() {
 return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });

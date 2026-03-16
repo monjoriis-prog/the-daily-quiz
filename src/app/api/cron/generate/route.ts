@@ -6,7 +6,7 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN || '',
 });
 
-const CATEGORIES = ['World', 'Tech', 'Science', 'Business', 'Sports', 'Culture'];
+const CATEGORIES = ['World', 'Tech', 'Science', 'Business', 'Sports', 'Culture', 'US Politics'];
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 function getToday() {

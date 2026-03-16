@@ -11,6 +11,7 @@ const CATEGORIES = [
   { id: 'business', label: 'Business', tag: 'MARKETS', color: '#D97706' },
   { id: 'sports', label: 'Sports', tag: 'SPORTS', color: '#DC2626' },
   { id: 'entertainment', label: 'Culture', tag: 'CULTURE', color: '#7C3AED' },
+  { id: 'politics', label: 'US Politics', tag: 'US POLITICS', color: '#6B7280' },
 ];
 
 const MAX_TIME = 15;

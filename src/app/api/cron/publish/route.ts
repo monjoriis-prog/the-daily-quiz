@@ -6,7 +6,7 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN || '',
 });
 
-const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
+const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture', 'politics'];
 
 function getToday() {
  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
