@@ -10,7 +10,7 @@ const CATEGORIES = ['World', 'Tech', 'Science', 'Business', 'Sports', 'Culture']
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 function stripCitations(text: string): string {
@@ -31,9 +31,9 @@ async function generateQuiz(category: string) {
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{
         role: 'user',
-        content: `Search for the latest ${category} news from today or in the last 24 hours. Stories MUST reflect the most current status — if a deal fell through, a policy was reversed, or a situation changed, use the LATEST update, not the original story. Use DIVERSE international sources: CNN, BBC, Al Jazeera, Reuters, AP, France 24, Deutsche Welle, NHK, The Guardian, and others.
+        content: `Search for the latest ${category} news from today or in the last 24 hours. Stories MUST reflect the most current status. Use DIVERSE international sources: CNN, BBC, Al Jazeera, Reuters, AP, France 24, Deutsche Welle, NHK, The Guardian, and others.
 
-Create exactly 6 quiz questions based on REAL current news stories.
+Create exactly 6 quiz questions based on REAL current news stories. Focus on MAJOR stories that most people would have heard about — avoid obscure or overly technical details. Questions should test general awareness, not insider knowledge.
 
 RULES:
 - Questions about verifiable public facts, NOT opinions
@@ -41,13 +41,13 @@ RULES:
 - Do NOT name any news outlet
 - Keep explanations to 1 sentence
 - Mix stories from different world regions
-- Add a "perspective" field: one sentence on how coverage or prominence differs across world regions
-- Add a "context" field: 2-3 sentences of background for someone unfamiliar with the topic
-- The "headline" must NEVER reveal or hint at the correct answer
+- Add a "perspective" field: one sentence on how coverage differs across regions
+- Add a "context" field: 2-3 sentences of background
+- The "headline" must NEVER reveal the correct answer
 - Do NOT include any HTML tags, citation tags, or markup
 
 Return ONLY a JSON array. Each item:
-{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label","perspective":"1 sentence on regional coverage","context":"2-3 sentences of background"}
+{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label","perspective":"1 sentence","context":"2-3 sentences"}
 
 Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
       }],
@@ -78,28 +78,40 @@ Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
+  const url = new URL(request.url);
+  const step = parseInt(url.searchParams.get('step') || '0');
+
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const today = getToday();
-  const results: string[] = [];
 
-  for (const category of CATEGORIES) {
-    try {
-      const questions = await generateQuiz(category);
-      // Save as pending — not live yet
-      await redis.set(`pending:${today}:${category.toLowerCase()}`, JSON.stringify(questions), { ex: 86400 });
-      results.push(`${category}: ${questions.length} questions generated (pending)`);
-    } catch (e: any) {
-      results.push(`${category}: failed - ${e.message}`);
-    }await new Promise(r => setTimeout(r, 60000));
+  if (step >= CATEGORIES.length) {
+    await redis.set(`review:${today}`, JSON.stringify({ status: 'pending', generatedAt: new Date().toISOString() }), { ex: 86400 });
+    return NextResponse.json({ success: true, message: 'All categories generated', date: today });
   }
 
-  // Save review status
-  await redis.set(`review:${today}`, JSON.stringify({ status: 'pending', generatedAt: new Date().toISOString(), categories: CATEGORIES }), { ex: 86400 });
+  const category = CATEGORIES[step];
 
-  // TODO: Send email notification here
+  try {
+    const questions = await generateQuiz(category);
+    await redis.set(`pending:${today}:${category.toLowerCase()}`, JSON.stringify(questions), { ex: 86400 });
 
-  return NextResponse.json({ success: true, date: today, results });
+    // Trigger next category
+    const baseUrl = `https://${process.env.VERCEL_URL || 'the-daily-quiz.vercel.app'}`;
+    fetch(`${baseUrl}/api/cron/generate?step=${step + 1}`, {
+      headers: { 'authorization': `Bearer ${process.env.CRON_SECRET}` },
+    }).catch(() => {});
+
+    return NextResponse.json({ success: true, category, step, questionsGenerated: questions.length });
+  } catch (e: any) {
+    // Still trigger next even if this one fails
+    const baseUrl = `https://${process.env.VERCEL_URL || 'the-daily-quiz.vercel.app'}`;
+    fetch(`${baseUrl}/api/cron/generate?step=${step + 1}`, {
+      headers: { 'authorization': `Bearer ${process.env.CRON_SECRET}` },
+    }).catch(() => {});
+
+    return NextResponse.json({ success: false, category, step, error: e.message });
+  }
 }
