@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "The Daily Quiz ",
+  title: "The Daily Quiz",
   description: "Play the news. Daily quiz powered by real-time global headlines.",
+  metadataBase: new URL("https://the-daily-quiz.vercel.app"),
+  openGraph: {
+    title: "The Daily Quiz",
+    description: "Think you know what's happening in the world? Prove it. 6 categories. 6 questions. New every day.",
+    siteName: "The Daily Quiz",
+    type: "website",
+    url: "https://the-daily-quiz.vercel.app",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Daily Quiz",
+    description: "Think you know what's happening in the world? Prove it.",
+  },
 };
 
 export default function RootLayout({
@@ -24,11 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
