@@ -100,16 +100,10 @@ export default function Home() {
     if (screen === 'results') { setCardRevealed(false); setTimeout(() => setCardRevealed(true), 300); }
   }, [screen]);
 
-  const fetchQuiz = async (cat: any, attempt: number = 0): Promise<any> => {
+  const fetchQuiz = async (cat: any): Promise<any> => {
     const res = await fetch(`/api/quiz?category=${cat.label}`);
     const data = await res.json();
-    if (data.error) {
-      if (attempt < 2 && (data.error.includes('rate limit') || data.error.includes('exceed'))) {
-        await new Promise(r => setTimeout(r, 3000));
-        return fetchQuiz(cat, attempt + 1);
-      }
-      throw new Error(data.error);
-    }
+    if (data.error) throw new Error(data.error);
     return data;
   };
 
