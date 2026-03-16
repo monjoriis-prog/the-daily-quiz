@@ -9,7 +9,7 @@ const redis = new Redis({
 });
 
 function getToday() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });}
 
 function stripCitations(text: string): string {
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/<\/?antml:cite[^>]*>/g, '');
