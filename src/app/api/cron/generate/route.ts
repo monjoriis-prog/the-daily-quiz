@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       results.push(`${category}: ${questions.length} questions generated (pending)`);
     } catch (e: any) {
       results.push(`${category}: failed - ${e.message}`);
-    }
+    }await new Promise(r => setTimeout(r, 60000));
   }
 
   // Save review status
