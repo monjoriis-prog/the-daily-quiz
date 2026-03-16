@@ -115,11 +115,7 @@ Keep the ENTIRE response concise. No markdown, no backticks, no HTML tags.`,
       }));
 
     try {
-      const now = new Date();
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
-      const secondsUntilMidnight = Math.floor((midnight.getTime() - now.getTime()) / 1000);
-      await redis.set(cacheKey, JSON.stringify(valid), { ex: secondsUntilMidnight });
+      await redis.set(cacheKey, JSON.stringify(valid), { ex: 86400 });
     } catch (e) {
       console.error('Cache write failed:', e);
     }

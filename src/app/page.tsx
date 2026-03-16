@@ -236,7 +236,7 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at midnight</p>
+            <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at 6 PM EST</p>
           </div>
         )}
 
