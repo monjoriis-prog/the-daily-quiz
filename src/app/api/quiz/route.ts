@@ -6,19 +6,30 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN || '',
 });
 
+const VALID_COUNTRIES = ['us', 'ca', 'uk', 'au'];
+
 function getToday() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get('category');
+  const country = request.nextUrl.searchParams.get('country');
 
   if (!category) {
     return NextResponse.json({ error: 'Category required' }, { status: 400 });
   }
 
   const today = getToday();
-  const cacheKey = `quiz:${today}:${category.toLowerCase()}`;
+
+  let cacheKey: string;
+  if (category.toLowerCase() === 'politics' && country && VALID_COUNTRIES.includes(country)) {
+    cacheKey = 'quiz:' + today + ':politics:' + country;
+  } else if (category.toLowerCase() === 'politics') {
+    cacheKey = 'quiz:' + today + ':politics:us';
+  } else {
+    cacheKey = 'quiz:' + today + ':' + category.toLowerCase();
+  }
 
   try {
     const cached = await redis.get(cacheKey);

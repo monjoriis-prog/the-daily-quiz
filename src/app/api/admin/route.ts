@@ -9,12 +9,12 @@ const redis = new Redis({
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dailyquiz2026';
 const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
 const POLITICS_COUNTRIES = ['us', 'ca', 'uk', 'au'];
+const ALL_KEYS = [...CATEGORIES, ...POLITICS_COUNTRIES.map(c => 'politics:' + c)];
 
 function getToday() {
 return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
-// GET: Fetch all pending questions for review
 export async function GET(request: NextRequest) {
   const pw = request.nextUrl.searchParams.get('pw');
   if (pw !== ADMIN_PASSWORD) {
@@ -24,34 +24,22 @@ export async function GET(request: NextRequest) {
   const today = getToday();
   const data: any = {};
 
-  for (const cat of CATEGORIES) {
-    const pending = await redis.get(`pending:${today}:${cat}`);
-    const approved = await redis.get(`approved:${today}:${cat}`);
-    const live = await redis.get(`quiz:${today}:${cat}`);
-    data[cat] = {
-      pending: pending || null,
-      approved: !!approved,
-      live: !!live,
-    };
-  }
-  // Politics countries
-  for (const code of POLITICS_COUNTRIES) {
-    const pending = await redis.get(`pending:${today}:politics-${code}`);
-    const approved = await redis.get(`approved:${today}:politics-${code}`);
-    const live = await redis.get(`quiz:${today}:politics-${code}`);
-    data[`politics-${code}`] = {
+  for (const key of ALL_KEYS) {
+    const pending = await redis.get('pending:' + today + ':' + key);
+    const approved = await redis.get('approved:' + today + ':' + key);
+    const live = await redis.get('quiz:' + today + ':' + key);
+    data[key] = {
       pending: pending || null,
       approved: !!approved,
       live: !!live,
     };
   }
 
-  const review = await redis.get(`review:${today}`);
+  const review = await redis.get('review:' + today);
 
   return NextResponse.json({ date: today, categories: data, review });
 }
 
-// POST: Approve or edit questions
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { pw, category, action, questions } = body;
@@ -63,27 +51,24 @@ export async function POST(request: NextRequest) {
   const today = getToday();
 
   if (action === 'approve') {
-    // Approve pending questions as-is
-    const pending = await redis.get(`pending:${today}:${category}`);
+    const pending = await redis.get('pending:' + today + ':' + category);
     if (pending) {
-      await redis.set(`approved:${today}:${category}`, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
-      return NextResponse.json({ success: true, message: `${category} approved` });
+      await redis.set('approved:' + today + ':' + category, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
+      return NextResponse.json({ success: true, message: category + ' approved' });
     }
     return NextResponse.json({ error: 'No pending questions found' }, { status: 404 });
   }
 
   if (action === 'approve-edited') {
-    // Save edited questions
-    await redis.set(`approved:${today}:${category}`, JSON.stringify(questions), { ex: 86400 });
-    return NextResponse.json({ success: true, message: `${category} approved with edits` });
+    await redis.set('approved:' + today + ':' + category, JSON.stringify(questions), { ex: 86400 });
+    return NextResponse.json({ success: true, message: category + ' approved with edits' });
   }
 
   if (action === 'approve-all') {
-    // Approve all pending categories
-    for (const cat of CATEGORIES) {
-      const pending = await redis.get(`pending:${today}:${cat}`);
+    for (const key of ALL_KEYS) {
+      const pending = await redis.get('pending:' + today + ':' + key);
       if (pending) {
-        await redis.set(`approved:${today}:${cat}`, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
+        await redis.set('approved:' + today + ':' + key, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
       }
     }
     return NextResponse.json({ success: true, message: 'All categories approved' });

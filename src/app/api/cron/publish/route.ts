@@ -15,54 +15,52 @@ function getToday() {
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== 'Bearer ' + process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const today = getToday();
   const results: string[] = [];
 
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const secondsUntilMidnight = Math.floor((midnight.getTime() - now.getTime()) / 1000);
+
   for (const category of CATEGORIES) {
     try {
-      // Check for approved version first
-      const approved = await redis.get(`approved:${today}:${category}`);
-      // Fall back to pending if not reviewed
-      const pending = approved || await redis.get(`pending:${today}:${category}`);
+      const approved = await redis.get('approved:' + today + ':' + category);
+      const pending = approved || await redis.get('pending:' + today + ':' + category);
 
       if (pending) {
-        // Publish as live quiz
-        const now = new Date();
-        const midnight = new Date(now);
-        midnight.setHours(24, 0, 0, 0);
-        const secondsUntilMidnight = Math.floor((midnight.getTime() - now.getTime()) / 1000);
-
-        await redis.set(`quiz:${today}:${category}`, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: secondsUntilMidnight });
-        results.push(`${category}: published ${approved ? '(approved)' : '(auto-published)'}`);
+        await redis.set('quiz:' + today + ':' + category, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: secondsUntilMidnight });
+        results.push(category + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
-        results.push(`${category}: no pending questions found`);
+        results.push(category + ': no pending questions found');
       }
     } catch (e: any) {
-      results.push(`${category}: failed - ${e.message}`);
+      results.push(category + ': failed - ' + e.message);
     }
   }
-  // Publish politics countries
-  for (const code of POLITICS_COUNTRIES) {
+
+  for (const country of POLITICS_COUNTRIES) {
+    const key = 'politics:' + country;
     try {
-      const approved = await redis.get(`approved:${today}:politics-${code}`);
-      const pending = approved || await redis.get(`pending:${today}:politics-${code}`);
+      const approved = await redis.get('approved:' + today + ':' + key);
+      const pending = approved || await redis.get('pending:' + today + ':' + key);
+
       if (pending) {
-        await redis.set(`quiz:${today}:politics-${code}`, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
-        results.push(`politics-${code}: published ${approved ? '(approved)' : '(auto-published)'}`);
+        await redis.set('quiz:' + today + ':' + key, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: secondsUntilMidnight });
+        results.push(key + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
-        results.push(`politics-${code}: no pending questions found`);
+        results.push(key + ': no pending questions found');
       }
     } catch (e: any) {
-      results.push(`politics-${code}: failed - ${e.message}`);
+      results.push(key + ': failed - ' + e.message);
     }
   }
 
-  // Update review status
-  await redis.set(`review:${today}`, JSON.stringify({ status: 'published', publishedAt: new Date().toISOString() }), { ex: 86400 });
+  await redis.set('review:' + today, JSON.stringify({ status: 'published', publishedAt: new Date().toISOString() }), { ex: 86400 });
 
   return NextResponse.json({ success: true, date: today, results });
 }

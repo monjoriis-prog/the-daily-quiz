@@ -1,8 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-const CATS = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
+const CATS = ['world', 'tech', 'science', 'business', 'sports', 'culture', 'politics:us', 'politics:ca', 'politics:uk', 'politics:au'];
+
+const DISPLAY_NAMES: Record<string, string> = {
+  'world': 'World',
+  'tech': 'Tech',
+  'science': 'Science',
+  'business': 'Business',
+  'sports': 'Sports',
+  'culture': 'Culture',
+  'politics:us': '🇺🇸 US Politics',
+  'politics:ca': '🇨🇦 Canada Politics',
+  'politics:uk': '🇬🇧 UK Politics',
+  'politics:au': '🇦🇺 Australia Politics',
+};
 
 export default function AdminPage() {
   const [pw, setPw] = useState('');
@@ -14,7 +27,7 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin?pw=${pw}`);
+      const res = await fetch('/api/admin?pw=' + pw);
       const d = await res.json();
       if (d.error) { setMessage(d.error); return; }
       setData(d);
@@ -95,7 +108,7 @@ export default function AdminPage() {
             <div key={cat} className="mb-6 border border-gray-200 rounded-xl overflow-hidden">
               <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
                 <div>
-                  <h2 className="font-bold capitalize text-lg" style={{ fontFamily: "'Georgia', serif" }}>{cat}</h2>
+                  <h2 className="font-bold text-lg" style={{ fontFamily: "'Georgia', serif" }}>{DISPLAY_NAMES[cat] || cat}</h2>
                   <p className="text-xs font-sans text-gray-400">
                     {catData.approved ? '✅ Approved' : catData.live ? '🟢 Live' : '⏳ Pending review'}
                   </p>
@@ -115,7 +128,7 @@ export default function AdminPage() {
                       <p className="font-semibold text-sm mb-2" style={{ fontFamily: "'Georgia', serif" }}>{q.question}</p>
                       <div className="grid grid-cols-2 gap-1 mb-2">
                         {q.options.map((opt: string, j: number) => (
-                          <p key={j} className={`text-xs font-sans p-1.5 rounded ${j === q.correct ? 'bg-green-50 text-green-700 font-semibold' : 'text-gray-500'}`}>
+                          <p key={j} className={'text-xs font-sans p-1.5 rounded ' + (j === q.correct ? 'bg-green-50 text-green-700 font-semibold' : 'text-gray-500')}>
                             {String.fromCharCode(65 + j)}. {opt}
                           </p>
                         ))}
