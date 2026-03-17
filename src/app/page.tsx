@@ -285,6 +285,7 @@ export default function Home() {
         .animate-slide-up { animation:slideUp .2s ease-out forwards; }
         .animate-slide-up-delay { opacity:0; animation:slideUp .2s ease-out .1s forwards; }
         .animate-slide-up-delay-2 { opacity:0; animation:slideUp .2s ease-out .2s forwards; }
+        .animate-slide-up-delay-3 { opacity:0; animation:slideUp .2s ease-out .3s forwards; }
         .animate-expand { animation:expandDown .2s ease-out forwards; overflow:hidden; }
         .flash-correct { animation:flashGreen .4s ease-out; }
         .flash-wrong { animation:flashRed .4s ease-out; }
@@ -521,6 +522,15 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+                {questions[currentQ].funFact && (
+                  <div className="animate-slide-up-delay bg-violet-50 rounded-lg p-4 mb-3 border border-violet-200 flex gap-3">
+                    <span className="text-lg">💡</span>
+                    <div>
+                      <p className="text-[11px] font-semibold text-violet-800 uppercase tracking-wide mb-1 font-sans">Did You Know?</p>
+                      <p className="text-[13px] text-violet-900 font-sans leading-relaxed">{questions[currentQ].funFact}</p>
+                    </div>
+                  </div>
+                )}
                 {questions[currentQ].perspective && (
                   <div className="animate-slide-up-delay bg-amber-50 rounded-lg p-4 mb-4 border border-amber-200 flex gap-3">
                     <span className="text-lg">🌍</span>
@@ -530,7 +540,7 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-                <button onClick={nextQuestion} className="animate-slide-up-delay-2 w-full py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
+                <button onClick={nextQuestion} className="animate-slide-up-delay-3 w-full py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
                   {currentQ+1 >= questions.length ? 'See Results' : 'Next Question'}
                 </button>
               </div>
