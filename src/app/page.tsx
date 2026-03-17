@@ -5,13 +5,13 @@ import { Confetti, GoldConfetti } from '@/components/Confetti';
 import { playCorrect, playWrong, playStreak, playComplete, playPerfect, playTick } from '@/lib/sounds';
 
 const CATEGORIES = [
-  { id: 'world', label: 'World', tag: 'GLOBAL AFFAIRS', color: '#1A1A1A', hasCountries: false },
-  { id: 'tech', label: 'Tech', tag: 'TECHNOLOGY', color: '#2563EB', hasCountries: false },
-  { id: 'science', label: 'Science', tag: 'SCIENCE', color: '#059669', hasCountries: false },
-  { id: 'business', label: 'Business', tag: 'MARKETS', color: '#D97706', hasCountries: false },
-  { id: 'sports', label: 'Sports', tag: 'SPORTS', color: '#DC2626', hasCountries: false },
-  { id: 'entertainment', label: 'Culture', tag: 'CULTURE', color: '#7C3AED', hasCountries: false },
-  { id: 'politics', label: 'Politics', tag: 'POLITICS', color: '#6B7280', hasCountries: true },
+  { id: 'world', label: 'World', tag: 'GLOBAL AFFAIRS', color: '#1A1A1A', hasCountries: false, free: true },
+  { id: 'tech', label: 'Tech', tag: 'TECHNOLOGY', color: '#2563EB', hasCountries: false, free: false },
+  { id: 'science', label: 'Science', tag: 'SCIENCE', color: '#059669', hasCountries: false, free: false },
+  { id: 'business', label: 'Business', tag: 'MARKETS', color: '#D97706', hasCountries: false, free: false },
+  { id: 'sports', label: 'Sports', tag: 'SPORTS', color: '#DC2626', hasCountries: false, free: false },
+  { id: 'entertainment', label: 'Culture', tag: 'CULTURE', color: '#7C3AED', hasCountries: false, free: false },
+  { id: 'politics', label: 'Politics', tag: 'POLITICS', color: '#6B7280', hasCountries: true, free: false },
 ];
 
 const POLITICS_COUNTRIES = [
@@ -20,6 +20,54 @@ const POLITICS_COUNTRIES = [
   { code: 'uk', label: 'UK', flag: '🇬🇧' },
   { code: 'au', label: 'Australia', flag: '🇦🇺' },
 ];
+
+const TITLES = [
+  { min: 0, title: 'Newsroom Intern', emoji: '📋' },
+  { min: 1000, title: 'Junior Reporter', emoji: '📝' },
+  { min: 5000, title: 'Reporter', emoji: '🎤' },
+  { min: 15000, title: 'Senior Reporter', emoji: '📰' },
+  { min: 30000, title: 'Columnist', emoji: '✍️' },
+  { min: 50000, title: 'Editor', emoji: '🗞️' },
+  { min: 100000, title: 'Senior Editor', emoji: '📊' },
+  { min: 200000, title: 'Editor-in-Chief', emoji: '👑' },
+];
+
+function getTitle(pts: number) {
+  let t = TITLES[0];
+  for (const tier of TITLES) {
+    if (pts >= tier.min) t = tier;
+  }
+  return t;
+}
+
+function getNextTitle(pts: number) {
+  for (const tier of TITLES) {
+    if (pts < tier.min) return tier;
+  }
+  return null;
+}
+
+function getTodayStr() {
+  return new Date().toLocaleDateString('en-CA');
+}
+
+function getYesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA');
+}
+
+function loadStats() {
+  try {
+    const raw = localStorage.getItem('dq_stats');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { totalPoints: 0, streak: 0, lastPlayedDate: null, gamesPlayed: 0 };
+}
+
+function saveStats(stats: any) {
+  try { localStorage.setItem('dq_stats', JSON.stringify(stats)); } catch {}
+}
 
 const MAX_TIME = 15;
 const LOADING_MESSAGES = ['Scanning the headlines…', 'Gathering stories from around the world…', 'Crafting your questions…', 'Almost there…'];
@@ -52,7 +100,7 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [roundCorrect, setRoundCorrect] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [screen, setScreen] = useState<'home' | 'quiz' | 'results'>('home');
+  const [screen, setScreen] = useState<'home' | 'quiz' | 'results' | 'paywall'>('home');
   const [category, setCategory] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [showContext, setShowContext] = useState(false);
@@ -65,11 +113,18 @@ export default function Home() {
   const [lastBonus, setLastBonus] = useState<number | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState('us');
+  const [isSubscribed, setIsSubscribed] = useState(true);
+  const [stats, setStats] = useState({ totalPoints: 0, streak: 0, lastPlayedDate: null as string | null, gamesPlayed: 0 });
+  const [resultsSaved, setResultsSaved] = useState(false);
   const timerRef = useRef<any>(null);
   const loadingMsgRef = useRef<any>(null);
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const shortDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  useEffect(() => {
+    setStats(loadStats());
+  }, []);
 
   useEffect(() => {
     if (screen === 'quiz' && !revealed && questions && questions.length > 0) {
@@ -104,7 +159,28 @@ export default function Home() {
   }, [loading]);
 
   useEffect(() => {
-    if (screen === 'results') { setCardRevealed(false); setTimeout(() => setCardRevealed(true), 300); }
+    if (screen === 'results') {
+      setCardRevealed(false);
+      setTimeout(() => setCardRevealed(true), 300);
+      if (!resultsSaved) {
+        const todayStr = getTodayStr();
+        const yesterdayStr = getYesterdayStr();
+        const newStats = { ...stats };
+        newStats.totalPoints += score;
+        newStats.gamesPlayed += 1;
+        if (newStats.lastPlayedDate === todayStr) {
+          // already played today, just add points
+        } else if (newStats.lastPlayedDate === yesterdayStr) {
+          newStats.streak += 1;
+        } else {
+          newStats.streak = 1;
+        }
+        newStats.lastPlayedDate = todayStr;
+        setStats(newStats);
+        saveStats(newStats);
+        setResultsSaved(true);
+      }
+    }
   }, [screen]);
 
   const fetchQuiz = async (cat: any): Promise<any> => {
@@ -119,7 +195,11 @@ export default function Home() {
   };
 
   const startQuiz = async (cat: any) => {
-    setCategory(cat); setLoading(cat.id); setError(null); setScreen('home');
+    if (!cat.free && !isSubscribed) {
+      setScreen('paywall');
+      return;
+    }
+    setCategory(cat); setLoading(cat.id); setError(null); setScreen('home'); setResultsSaved(false);
     try {
       const data = await fetchQuiz(cat);
       setQuestions(data.questions); setCurrentQ(0); setSelected(null); setRevealed(false);
@@ -185,6 +265,9 @@ export default function Home() {
   const getResultTitle = () => { if (!questions) return ''; if (roundCorrect === questions.length) return '🏆 Perfect Score!'; if (roundCorrect >= 5) return '🧠 Certified News Buff'; if (roundCorrect >= 4) return '📰 Sharp Mind'; if (roundCorrect >= 3) return '📰 Getting There'; if (roundCorrect >= 1) return '🌱 Room to Grow'; return ''; };
   const getResultMessage = () => { if (!questions) return ''; if (roundCorrect === questions.length) return "Flawless. You are officially the most informed person in the room."; if (roundCorrect >= 5) return "Impressive — you clearly know what is happening in the world."; if (roundCorrect >= 4) return "Great work! You are well informed."; if (roundCorrect >= 3) return 'Not bad! A few more rounds and you will be a pro.'; if (roundCorrect >= 1) return "Hey, that is a start. Come back tomorrow and level up."; return ''; };
 
+  const currentTitle = getTitle(stats.totalPoints);
+  const nextTitleInfo = getNextTitle(stats.totalPoints);
+
   return (
     <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Georgia', serif" }}>
       <style jsx global>{`
@@ -218,6 +301,55 @@ export default function Home() {
 
       <div className="max-w-xl mx-auto px-5">
 
+        {screen === 'paywall' && (
+          <div className="pt-12">
+            <div className="text-center pb-6 border-b-2 border-gray-900 mb-8">
+              <p className="text-4xl mb-4">🔓</p>
+              <h2 className="text-3xl font-bold mb-2 tracking-tight">Unlock All Categories</h2>
+              <p className="text-sm text-gray-400 font-sans">Go beyond the headlines.</p>
+            </div>
+            <div className="mb-8">
+              <div className="rounded-2xl p-6 mb-6" style={{ background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)' }}>
+                <p className="text-[10px] tracking-[3px] uppercase font-sans text-gray-400 mb-4">PRO MEMBERSHIP</p>
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-4xl font-bold text-white score-font">$3.99</span>
+                  <span className="text-sm text-gray-400 font-sans">/month</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-green-400 text-sm">✓</span>
+                    <p className="text-sm text-gray-300 font-sans">All 10 categories daily</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-green-400 text-sm">✓</span>
+                    <p className="text-sm text-gray-300 font-sans">Politics for US, Canada, UK & Australia</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-green-400 text-sm">✓</span>
+                    <p className="text-sm text-gray-300 font-sans">New questions every day at 6 PM</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-green-400 text-sm">✓</span>
+                    <p className="text-sm text-gray-300 font-sans">Support independent journalism quizzes</p>
+                  </div>
+                </div>
+              </div>
+              <button className="w-full py-4 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity mb-3">
+                Subscribe — $3.99/month
+              </button>
+              <button className="w-full py-3 rounded-lg border-[1.5px] border-gray-200 text-gray-500 font-sans font-semibold text-sm hover:bg-gray-50 transition-colors mb-3">
+                Restore Purchase
+              </button>
+              <button onClick={goHome} className="w-full py-3 text-gray-400 font-sans text-sm hover:text-gray-600 transition-colors">
+                ← Continue with free version
+              </button>
+            </div>
+            <div className="text-center pb-8">
+              <p className="text-[11px] text-gray-300 font-sans">Cancel anytime. Free category always available.</p>
+            </div>
+          </div>
+        )}
+
         {screen === 'home' && (
           <div>
             <div className="text-center pt-12 pb-5 border-b-2 border-gray-900">
@@ -225,6 +357,43 @@ export default function Home() {
               <h1 className="text-5xl font-bold mb-1 tracking-tight">The Daily Quiz</h1>
               <p className="text-sm text-gray-400 font-sans">Play the news.</p>
             </div>
+
+            {stats.gamesPlayed > 0 && (
+              <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{currentTitle.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold">{currentTitle.title}</p>
+                    <p className="text-[11px] text-gray-400 font-sans">{stats.totalPoints.toLocaleString()} total pts</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {stats.streak > 0 && (
+                    <div className="text-center">
+                      <p className="text-lg font-bold score-font">{stats.streak}🔥</p>
+                      <p className="text-[10px] text-gray-400 font-sans uppercase">Streak</p>
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <p className="text-lg font-bold score-font">{stats.gamesPlayed}</p>
+                    <p className="text-[10px] text-gray-400 font-sans uppercase">Played</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {nextTitleInfo && stats.gamesPlayed > 0 && (
+              <div className="mt-2 px-1">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] text-gray-400 font-sans">Next: {nextTitleInfo.emoji} {nextTitleInfo.title}</p>
+                  <p className="text-[10px] text-gray-400 font-sans">{stats.totalPoints.toLocaleString()} / {nextTitleInfo.min.toLocaleString()}</p>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gray-900 rounded-full transition-all" style={{ width: Math.min((stats.totalPoints / nextTitleInfo.min) * 100, 100) + '%' }} />
+                </div>
+              </div>
+            )}
+
             {error && <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-sans">{error}</div>}
             {loading && (
               <div className="mt-6 mb-4 p-8 text-center">
@@ -235,35 +404,49 @@ export default function Home() {
               </div>
             )}
             <div className="flex flex-col pt-2">
-              {CATEGORIES.map(cat => (
-                <div key={cat.id} className="border-b border-gray-200">
-                  <button onClick={() => startQuiz(cat)} disabled={loading !== null}
-                    className="w-full bg-white py-5 px-1 text-left flex items-center justify-between hover:bg-gray-50 transition-colors disabled:opacity-40">
-                    <div>
-                      <p className="text-[10px] font-semibold tracking-widest uppercase font-sans mb-1" style={{ color:cat.color }}>{cat.tag}</p>
-                      <p className="text-xl font-semibold">{cat.label}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {loading === cat.id ? <span className="text-xs font-semibold font-sans" style={{ color:cat.color }}>Loading…</span> : <span className="text-xs text-gray-300 font-sans">6 questions</span>}
-                      <span className="text-gray-300 text-lg">→</span>
-                    </div>
-                  </button>
-                  {cat.hasCountries && (
-                    <div className="flex gap-2 mt-[-8px] mb-4 px-1">
-                      {POLITICS_COUNTRIES.map(c => (
-                        <button
-                          key={c.code}
-                          onClick={(e) => { e.stopPropagation(); setSelectedCountry(c.code); }}
-                          className={'px-3 py-1.5 rounded-full text-xs font-sans font-medium transition-all ' + (selectedCountry === c.code ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
-                        >
-                          {c.flag} {c.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {CATEGORIES.map(cat => {
+                const locked = !cat.free && !isSubscribed;
+                return (
+                  <div key={cat.id} className="border-b border-gray-200">
+                    <button onClick={() => startQuiz(cat)} disabled={loading !== null}
+                      className="w-full bg-white py-5 px-1 text-left flex items-center justify-between hover:bg-gray-50 transition-colors disabled:opacity-40">
+                      <div>
+                        <p className="text-[10px] font-semibold tracking-widest uppercase font-sans mb-1" style={{ color: locked ? '#D1D5DB' : cat.color }}>{cat.tag}</p>
+                        <p className={'text-xl font-semibold ' + (locked ? 'text-gray-300' : '')}>{cat.label}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {locked ? (
+                          <span className="text-sm">🔒</span>
+                        ) : (
+                          <>
+                            {loading === cat.id ? <span className="text-xs font-semibold font-sans" style={{ color:cat.color }}>Loading…</span> : <span className="text-xs text-gray-300 font-sans">6 questions</span>}
+                            <span className="text-gray-300 text-lg">→</span>
+                          </>
+                        )}
+                      </div>
+                    </button>
+                    {cat.hasCountries && !locked && (
+                      <div className="flex gap-2 mt-[-8px] mb-4 px-1">
+                        {POLITICS_COUNTRIES.map(c => (
+                          <button
+                            key={c.code}
+                            onClick={(e) => { e.stopPropagation(); setSelectedCountry(c.code); }}
+                            className={'px-3 py-1.5 rounded-full text-xs font-sans font-medium transition-all ' + (selectedCountry === c.code ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}
+                          >
+                            {c.flag} {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            {!isSubscribed && (
+              <button onClick={() => setScreen('paywall')} className="w-full mt-4 py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
+                Unlock All Categories — $3.99/mo
+              </button>
+            )}
             <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at 6 PM EST</p>
           </div>
         )}
@@ -371,13 +554,33 @@ export default function Home() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-px bg-gray-200 rounded-lg overflow-hidden mb-8">
-              {[{ label:'Correct', value: roundCorrect + '/' + questions.length }, { label:'Category', value: getDisplayLabel() }].map((s,i) => (
-                <div key={i} className="bg-white p-5 text-center">
-                  <p className="text-xl font-semibold score-font mb-1">{s.value}</p>
-                  <p className="text-[11px] text-gray-400 uppercase tracking-wide font-sans">{s.label}</p>
+            <div className="grid grid-cols-3 gap-px bg-gray-200 rounded-lg overflow-hidden mb-8">
+              {[
+                { label:'Correct', value: roundCorrect + '/' + questions.length },
+                { label:'Category', value: getDisplayLabel() },
+                { label:'Streak', value: stats.streak + '🔥' },
+              ].map((s,i) => (
+                <div key={i} className="bg-white p-4 text-center">
+                  <p className="text-lg font-semibold score-font mb-1">{s.value}</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-sans">{s.label}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mb-6 p-4 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{currentTitle.emoji}</span>
+                <div>
+                  <p className="text-sm font-semibold">{currentTitle.title}</p>
+                  <p className="text-[11px] text-gray-400 font-sans">{stats.totalPoints.toLocaleString()} total pts</p>
+                </div>
+              </div>
+              {nextTitleInfo && (
+                <div className="text-right">
+                  <p className="text-[10px] text-gray-400 font-sans">Next: {nextTitleInfo.emoji} {nextTitleInfo.title}</p>
+                  <p className="text-[10px] text-gray-400 font-sans">{(nextTitleInfo.min - stats.totalPoints).toLocaleString()} pts to go</p>
+                </div>
+              )}
             </div>
 
             {roundCorrect === 0 ? (
@@ -437,6 +640,14 @@ export default function Home() {
                     <button onClick={handleCopy} className="py-3 rounded-lg border-[1.5px] border-gray-200 font-sans font-semibold text-sm flex items-center justify-center gap-2" style={{ background:copied?'#059669':'#FFF', color:copied?'#FFF':'#1A1A1A' }}>{copied ? '✓ Copied!' : '📋 Copy'}</button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {!isSubscribed && (
+              <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-gray-200 text-center">
+                <p className="text-sm font-semibold mb-1">Want to play more categories?</p>
+                <p className="text-xs text-gray-400 font-sans mb-3">Unlock Tech, Science, Business, Sports, Culture & Politics</p>
+                <button onClick={() => setScreen('paywall')} className="px-6 py-2.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm">Upgrade — $3.99/mo</button>
               </div>
             )}
 
