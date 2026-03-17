@@ -6,7 +6,13 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN || '',
 });
 
-const CATEGORIES = ['World', 'Tech', 'Science', 'Business', 'Sports', 'Culture', 'US Politics'];
+const CATEGORIES = ['World', 'Tech', 'Science', 'Business', 'Sports', 'Culture'];
+const POLITICS_COUNTRIES = [
+  { code: 'us', label: 'US', prompt: 'United States political news' },
+  { code: 'ca', label: 'Canada', prompt: 'Canadian political news' },
+  { code: 'uk', label: 'UK', prompt: 'United Kingdom political news' },
+  { code: 'au', label: 'Australia', prompt: 'Australian political news' },
+];
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 function getToday() {
@@ -87,31 +93,53 @@ export async function GET(request: Request) {
 
   const today = getToday();
 
-  if (step >= CATEGORIES.length) {
+  const totalSteps = CATEGORIES.length + POLITICS_COUNTRIES.length;
+
+  if (step >= totalSteps) {
     await redis.set(`review:${today}`, JSON.stringify({ status: 'pending', generatedAt: new Date().toISOString() }), { ex: 86400 });
     return NextResponse.json({ success: true, message: 'All categories generated', date: today });
+  
+
+  // Regular categories (steps 0-5)
+  if (step < CATEGORIES.length) {
+    const category = CATEGORIES[step];
+    try {
+      const questions = await generateQuiz(category);
+      await redis.set(`pending:${today}:${category.toLowerCase()}`, JSON.stringify(questions), { ex: 86400 });
+
+      const baseUrl = `https://${process.env.VERCEL_URL || 'the-daily-quiz.vercel.app'}`;
+      fetch(`${baseUrl}/api/cron/generate?step=${step + 1}`, {
+        headers: { 'authorization': `Bearer ${process.env.CRON_SECRET}` },
+      }).catch(() => {});
+
+      return NextResponse.json({ success: true, category, step, questionsGenerated: questions.length });
+    } catch (e: any) {
+      const baseUrl = `https://${process.env.VERCEL_URL || 'the-daily-quiz.vercel.app'}`;
+      fetch(`${baseUrl}/api/cron/generate?step=${step + 1}`, {
+        headers: { 'authorization': `Bearer ${process.env.CRON_SECRET}` },
+      }).catch(() => {});
+      return NextResponse.json({ success: false, category, step, error: e.message });
+    }
   }
 
-  const category = CATEGORIES[step];
-
+  // Politics countries (steps 6-9)
+  const countryIndex = step - CATEGORIES.length;
+  const country = POLITICS_COUNTRIES[countryIndex];
   try {
-    const questions = await generateQuiz(category);
-    await redis.set(`pending:${today}:${category.toLowerCase()}`, JSON.stringify(questions), { ex: 86400 });
+    const questions = await generateQuiz(`${country.prompt} — focus on ${country.label} domestic politics, elections, legislation, and government`);
+    await redis.set(`pending:${today}:politics-${country.code}`, JSON.stringify(questions), { ex: 86400 });
 
-    // Trigger next category
     const baseUrl = `https://${process.env.VERCEL_URL || 'the-daily-quiz.vercel.app'}`;
     fetch(`${baseUrl}/api/cron/generate?step=${step + 1}`, {
       headers: { 'authorization': `Bearer ${process.env.CRON_SECRET}` },
     }).catch(() => {});
 
-    return NextResponse.json({ success: true, category, step, questionsGenerated: questions.length });
+    return NextResponse.json({ success: true, category: `politics-${country.code}`, step, questionsGenerated: questions.length });
   } catch (e: any) {
-    // Still trigger next even if this one fails
     const baseUrl = `https://${process.env.VERCEL_URL || 'the-daily-quiz.vercel.app'}`;
     fetch(`${baseUrl}/api/cron/generate?step=${step + 1}`, {
       headers: { 'authorization': `Bearer ${process.env.CRON_SECRET}` },
     }).catch(() => {});
-
-    return NextResponse.json({ success: false, category, step, error: e.message });
+    return NextResponse.json({ success: false, category: `politics-${country.code}`, step, error: e.message });
   }
-}
+}}

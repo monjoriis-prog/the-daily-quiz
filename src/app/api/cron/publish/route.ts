@@ -6,7 +6,8 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.STORAGE_REST_API_TOKEN || '',
 });
 
-const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture', 'politics'];
+const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
+const POLITICS_COUNTRIES = ['us', 'ca', 'uk', 'au'];
 
 function getToday() {
  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -42,6 +43,21 @@ export async function GET(request: Request) {
       }
     } catch (e: any) {
       results.push(`${category}: failed - ${e.message}`);
+    }
+  }
+  // Publish politics countries
+  for (const code of POLITICS_COUNTRIES) {
+    try {
+      const approved = await redis.get(`approved:${today}:politics-${code}`);
+      const pending = approved || await redis.get(`pending:${today}:politics-${code}`);
+      if (pending) {
+        await redis.set(`quiz:${today}:politics-${code}`, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
+        results.push(`politics-${code}: published ${approved ? '(approved)' : '(auto-published)'}`);
+      } else {
+        results.push(`politics-${code}: no pending questions found`);
+      }
+    } catch (e: any) {
+      results.push(`politics-${code}: failed - ${e.message}`);
     }
   }
 

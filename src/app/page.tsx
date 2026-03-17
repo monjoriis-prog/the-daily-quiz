@@ -11,7 +11,13 @@ const CATEGORIES = [
   { id: 'business', label: 'Business', tag: 'MARKETS', color: '#D97706' },
   { id: 'sports', label: 'Sports', tag: 'SPORTS', color: '#DC2626' },
   { id: 'entertainment', label: 'Culture', tag: 'CULTURE', color: '#7C3AED' },
-  { id: 'politics', label: 'US Politics', tag: 'US POLITICS', color: '#6B7280' },
+  { id: 'politics', label: 'Politics', tag: 'POLITICS', color: '#6B7280', hasCountries: true },
+];
+const POLITICS_COUNTRIES = [
+  { code: 'us', label: 'US', flag: '🇺🇸' },
+  { code: 'ca', label: 'Canada', flag: '🇨🇦' },
+  { code: 'uk', label: 'UK', flag: '🇬🇧' },
+  { code: 'au', label: 'Australia', flag: '🇦🇺' },
 ];
 
 const MAX_TIME = 15;
@@ -55,6 +61,7 @@ export default function Home() {
   const [confettiType, setConfettiType] = useState<'normal' | 'big' | 'perfect'>('normal');
   const [goldTrigger, setGoldTrigger] = useState(0);
   const [cardRevealed, setCardRevealed] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState('us');
   const [lastBonus, setLastBonus] = useState<number | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const timerRef = useRef<any>(null);
@@ -111,7 +118,8 @@ export default function Home() {
   const startQuiz = async (cat: any) => {
     setCategory(cat); setLoading(cat.id); setError(null); setScreen('home');
     try {
-      const data = await fetchQuiz(cat);
+      const quizCat = cat.hasCountries ? { ...cat, label: `politics-${selectedCountry}` } : cat;
+      const data = await fetchQuiz(quizCat);
       setQuestions(data.questions); setCurrentQ(0); setSelected(null); setRevealed(false);
       setScore(0); setRoundCorrect(0); setStreak(0); setScreen('quiz'); setTimedOut(false); setLastBonus(null);
     } catch { setError("Couldn't load the quiz right now. Try again in a moment."); }
@@ -229,9 +237,19 @@ export default function Home() {
                     <span className="text-gray-300 text-lg">→</span>
                   </div>
                 </button>
+                {cat.hasCountries && (
+                <div className="flex gap-2 mt-2 px-1">
+                  {POLITICS_COUNTRIES.map(c => (
+                    <button key={c.code} onClick={(e) => { e.stopPropagation(); setSelectedCountry(c.code); }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-sans font-medium transition-all ${selectedCountry === c.code ? 'bg-gray-900 text-white' : 'bg-white border-[1.5px] border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                      {c.flag} {c.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               ))}
             </div>
-            <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at 6 PM EST</p>
+            <p className="text-center py-8 text-xs text-gray-300 font-sans">Stay sharp. Play daily.</p>
           </div>
         )}
 

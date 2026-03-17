@@ -7,7 +7,8 @@ const redis = new Redis({
 });
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dailyquiz2026';
-const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture', 'politics'];
+const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
+const POLITICS_COUNTRIES = ['us', 'ca', 'uk', 'au'];
 
 function getToday() {
 return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -28,6 +29,17 @@ export async function GET(request: NextRequest) {
     const approved = await redis.get(`approved:${today}:${cat}`);
     const live = await redis.get(`quiz:${today}:${cat}`);
     data[cat] = {
+      pending: pending || null,
+      approved: !!approved,
+      live: !!live,
+    };
+  }
+  // Politics countries
+  for (const code of POLITICS_COUNTRIES) {
+    const pending = await redis.get(`pending:${today}:politics-${code}`);
+    const approved = await redis.get(`approved:${today}:politics-${code}`);
+    const live = await redis.get(`quiz:${today}:politics-${code}`);
+    data[`politics-${code}`] = {
       pending: pending || null,
       approved: !!approved,
       live: !!live,
