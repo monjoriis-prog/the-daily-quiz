@@ -23,6 +23,8 @@ export default function AdminPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editQuestions, setEditQuestions] = useState<any[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -55,6 +57,44 @@ export default function AdminPage() {
     });
     const d = await res.json();
     setMessage(d.message || d.error);
+    fetchData();
+  };
+
+  const startEdit = (cat: string, questions: any[]) => {
+    setEditing(cat);
+    setEditQuestions(JSON.parse(JSON.stringify(questions)));
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setEditQuestions([]);
+  };
+
+  const updateQuestion = (qIdx: number, field: string, value: any) => {
+    const updated = [...editQuestions];
+    updated[qIdx] = { ...updated[qIdx], [field]: value };
+    setEditQuestions(updated);
+  };
+
+  const updateOption = (qIdx: number, optIdx: number, value: string) => {
+    const updated = [...editQuestions];
+    const opts = [...updated[qIdx].options];
+    opts[optIdx] = value;
+    updated[qIdx] = { ...updated[qIdx], options: opts };
+    setEditQuestions(updated);
+  };
+
+  const saveEdits = async () => {
+    if (!editing) return;
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw, category: editing, action: 'approve-edited', questions: editQuestions }),
+    });
+    const d = await res.json();
+    setMessage(d.message || d.error);
+    setEditing(null);
+    setEditQuestions([]);
     fetchData();
   };
 
@@ -103,6 +143,7 @@ export default function AdminPage() {
           const catData = data?.categories?.[cat];
           if (!catData) return null;
           const questions = catData.pending ? (typeof catData.pending === 'string' ? JSON.parse(catData.pending) : catData.pending) : [];
+          const isEditing = editing === cat;
 
           return (
             <div key={cat} className="mb-6 border border-gray-200 rounded-xl overflow-hidden">
@@ -113,14 +154,100 @@ export default function AdminPage() {
                     {catData.approved ? '✅ Approved' : catData.live ? '🟢 Live' : '⏳ Pending review'}
                   </p>
                 </div>
-                {!catData.approved && questions.length > 0 && (
-                  <button onClick={() => approve(cat)} className="px-4 py-2 bg-green-600 text-white rounded-lg font-sans font-semibold text-xs">
-                    Approve
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {!isEditing && questions.length > 0 && (
+                    <button onClick={() => startEdit(cat, questions)} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-sans font-semibold text-xs">
+                      Edit
+                    </button>
+                  )}
+                  {!isEditing && !catData.approved && questions.length > 0 && (
+                    <button onClick={() => approve(cat)} className="px-4 py-2 bg-green-600 text-white rounded-lg font-sans font-semibold text-xs">
+                      Approve
+                    </button>
+                  )}
+                  {isEditing && (
+                    <>
+                      <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-sans font-semibold text-xs">
+                        Cancel
+                      </button>
+                      <button onClick={saveEdits} className="px-4 py-2 bg-green-600 text-white rounded-lg font-sans font-semibold text-xs">
+                        Save & Approve
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {questions.length > 0 ? (
+              {isEditing ? (
+                <div className="divide-y divide-gray-100">
+                  {editQuestions.map((q: any, i: number) => (
+                    <div key={i} className="p-4 bg-blue-50">
+                      <p className="text-xs text-blue-600 font-sans font-semibold mb-2">Editing Q{i + 1}</p>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Headline</label>
+                        <input
+                          value={q.headline}
+                          onChange={e => updateQuestion(i, 'headline', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Question</label>
+                        <textarea
+                          value={q.question}
+                          onChange={e => updateQuestion(i, 'question', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Options (click radio to set correct answer)</label>
+                        {q.options.map((opt: string, j: number) => (
+                          <div key={j} className="flex items-center gap-2 mt-1">
+                            <input
+                              type="radio"
+                              name={'correct-' + cat + '-' + i}
+                              checked={q.correct === j}
+                              onChange={() => updateQuestion(i, 'correct', j)}
+                            />
+                            <span className="text-xs font-semibold font-sans w-4">{String.fromCharCode(65 + j)}.</span>
+                            <input
+                              value={opt}
+                              onChange={e => updateOption(i, j, e.target.value)}
+                              className={'flex-1 p-2 border rounded text-sm font-sans ' + (q.correct === j ? 'border-green-400 bg-green-50' : 'border-gray-200')}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Explanation</label>
+                        <input
+                          value={q.explanation}
+                          onChange={e => updateQuestion(i, 'explanation', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Context</label>
+                        <textarea
+                          value={q.context || ''}
+                          onChange={e => updateQuestion(i, 'context', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Perspective</label>
+                        <input
+                          value={q.perspective || ''}
+                          onChange={e => updateQuestion(i, 'perspective', e.target.value)}
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : questions.length > 0 ? (
                 <div className="divide-y divide-gray-100">
                   {questions.map((q: any, i: number) => (
                     <div key={i} className="p-4">
