@@ -1,12 +1,15 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/generate",
-      "schedule": "0 18 * * *"
-    },
-    {
-      "path": "/api/cron/publish",
-      "schedule": "0 22 * * *"
-    }
+    { "path": "/api/cron/generate?cat=world", "schedule": "0 17 * * *" },
+    { "path": "/api/cron/generate?cat=tech", "schedule": "5 17 * * *" },
+    { "path": "/api/cron/generate?cat=science", "schedule": "10 17 * * *" },
+    { "path": "/api/cron/generate?cat=business", "schedule": "15 17 * * *" },
+    { "path": "/api/cron/generate?cat=sports", "schedule": "20 17 * * *" },
+    { "path": "/api/cron/generate?cat=culture", "schedule": "25 17 * * *" },
+    { "path": "/api/cron/generate?cat=politics:us", "schedule": "30 17 * * *" },
+    { "path": "/api/cron/generate?cat=politics:ca", "schedule": "35 17 * * *" },
+    { "path": "/api/cron/generate?cat=politics:uk", "schedule": "40 17 * * *" },
+    { "path": "/api/cron/generate?cat=politics:au", "schedule": "45 17 * * *" },
+    { "path": "/api/cron/publish", "schedule": "0 22 * * *" }
   ]
 }
