@@ -48,7 +48,7 @@ export async function GET() {
               marginBottom: '12px',
             }}
           >
-            The Daily Quiz
+            Newzplay
           </div>
           <div
             style={{

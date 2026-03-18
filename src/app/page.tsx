@@ -255,11 +255,11 @@ export default function Home() {
   };
 
   const shareText = questions && screen === 'results'
-    ? '📰 The Daily Quiz — ' + getDisplayLabel() + '\n' + Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('') + '\nScore: ' + score + ' pts · ' + roundCorrect + '/' + questions.length + ' correct\n\nCan you beat me? Play the news.\nhttps://the-daily-quiz.vercel.app'
+    ? '📰 Newzplay — ' + getDisplayLabel() + '\n' + Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('') + '\nScore: ' + score + ' pts · ' + roundCorrect + '/' + questions.length + ' correct\n\nCan you beat me? Play the news.\nhttps://the-daily-quiz.vercel.app'
     : '';
 
   const handleCopy = async () => { try { await navigator.clipboard.writeText(shareText); } catch {} setCopied(true); setTimeout(() => setCopied(false), 2000); };
-  const handleNativeShare = async () => { if (navigator.share) { try { await navigator.share({ title: 'The Daily Quiz', text: shareText }); } catch {} } };
+  const handleNativeShare = async () => { if (navigator.share) { try { await navigator.share({ title: 'Newzplay', text: shareText }); } catch {} } };
   const hasNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
 
   const getResultTitle = () => { if (!questions) return ''; if (roundCorrect === questions.length) return '🏆 Perfect Score!'; if (roundCorrect >= 5) return '🧠 Certified News Buff'; if (roundCorrect >= 4) return '📰 Sharp Mind'; if (roundCorrect >= 3) return '📰 Getting There'; if (roundCorrect >= 1) return '🌱 Room to Grow'; return ''; };
@@ -355,7 +355,7 @@ export default function Home() {
           <div>
             <div className="text-center pt-12 pb-5 border-b-2 border-gray-900">
               <p className="text-xs font-semibold tracking-widest text-gray-400 mb-3 font-sans uppercase">{today}</p>
-              <h1 className="text-5xl font-bold mb-1 tracking-tight">The Daily Quiz</h1>
+              <h1 className="text-5xl font-bold mb-1 tracking-tight">Newzplay</h1>
               <p className="text-sm text-gray-400 font-sans">Play the news.</p>
             </div>
 
@@ -611,7 +611,7 @@ export default function Home() {
                     <div className={'flex items-start justify-between mb-6 ' + (cardRevealed?'fade-in':'opacity-0')} style={{ animationDelay:'.3s' }}>
                       <div>
                         <p className="text-[10px] tracking-[3px] uppercase" style={{ fontFamily:"'DM Sans',sans-serif", color:'#64748b' }}>{shortDate}</p>
-                        <p className="text-lg font-bold text-white mt-1" style={{ fontFamily:"'Georgia',serif" }}>The Daily Quiz</p>
+                        <p className="text-lg font-bold text-white mt-1" style={{ fontFamily:"'Georgia',serif" }}>Newzplay</p>
                       </div>
                       <span className="text-[9px] font-bold tracking-[3px] uppercase px-3 py-1.5 rounded-full"
                         style={{ fontFamily:"'DM Sans',sans-serif", color:category?.color, background:(category?.color || '') + '15', border:'1px solid ' + (category?.color || '') + '25' }}>
