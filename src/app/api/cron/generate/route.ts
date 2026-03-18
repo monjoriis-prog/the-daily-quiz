@@ -23,13 +23,40 @@ function stripCitations(text: string): string {
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/<\/?antml:cite[^>]*>/g, '');
 }
 
+async function getRecentHeadlines(category: string): Promise<string[]> {
+  try {
+    const raw = await redis.get('recent-headlines:' + category);
+    if (!raw) return [];
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveHeadlines(category: string, newHeadlines: string[]) {
+  try {
+    const existing = await getRecentHeadlines(category);
+    // Keep last 7 days worth (max 42 headlines: 6 per day x 7 days)
+    const combined = [...newHeadlines, ...existing].slice(0, 42);
+    await redis.set('recent-headlines:' + category, JSON.stringify(combined), { ex: 604800 }); // 7 day TTL
+  } catch {}
+}
+
 async function generateQuiz(category: string) {
   const isPolitics = category.startsWith('politics:');
   const countryName = isPolitics ? POLITICS_LABELS[category] : null;
 
+  // Get recent headlines to avoid repeats
+  const recentHeadlines = await getRecentHeadlines(category);
+  const avoidSection = recentHeadlines.length > 0
+    ? '\n\nDo NOT repeat these recent topics — find DIFFERENT stories or ask about a DIFFERENT angle if the same story is still ongoing:\n' + recentHeadlines.map(h => '- ' + h).join('\n')
+    : '';
+
   const prompt = isPolitics
-    ? 'Search for the latest ' + countryName + ' politics news from today or in the last 24 hours. Focus specifically on ' + countryName + ' domestic politics, government, elections, legislation, and political figures.\n\nCreate exactly 6 quiz questions based on REAL current ' + countryName + ' political news stories. Focus on MAJOR stories that most people following ' + countryName + ' politics would have heard about.\n\nRULES:\n- Questions about verifiable public facts, NOT opinions\n- Write everything in YOUR OWN words\n- Do NOT name any news outlet\n- Keep explanations to 1 sentence\n- Add a "perspective" field: one sentence on how this story is viewed differently by different political sides or internationally\n- Add a "context" field: 2-3 sentences of background\n- Add a "funFact" field: one surprising or little-known fact related to the topic that most people would not know\n- The "headline" must NEVER reveal the correct answer\n- Do NOT include any HTML tags, citation tags, or markup\n\nReturn ONLY a JSON array. Each item:\n{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label","perspective":"1 sentence","context":"2-3 sentences","funFact":"1 surprising fact"}\n\nIMPORTANT: Return ONLY the JSON array. No markdown, no backticks, no HTML tags, no text before or after the array.'
-    : 'Search for the latest ' + category + ' news from today or in the last 24 hours. Stories MUST reflect the most current status. Use DIVERSE international sources: CNN, BBC, Al Jazeera, Reuters, AP, France 24, Deutsche Welle, NHK, The Guardian, and others.\n\nCreate exactly 6 quiz questions based on REAL current news stories. Focus on MAJOR stories that most people would have heard about — avoid obscure or overly technical details. Questions should test general awareness, not insider knowledge.\n\nRULES:\n- Questions about verifiable public facts, NOT opinions\n- Write everything in YOUR OWN words\n- Do NOT name any news outlet\n- Keep explanations to 1 sentence\n- Mix stories from different world regions\n- Add a "perspective" field: one sentence on how coverage differs across regions\n- Add a "context" field: 2-3 sentences of background\n- Add a "funFact" field: one surprising or little-known fact related to the topic that most people would not know\n- The "headline" must NEVER reveal the correct answer\n- Do NOT include any HTML tags, citation tags, or markup\n\nReturn ONLY a JSON array. Each item:\n{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label","perspective":"1 sentence","context":"2-3 sentences","funFact":"1 surprising fact"}\n\nIMPORTANT: Return ONLY the JSON array. No markdown, no backticks, no HTML tags, no text before or after the array.';
+    ? 'Search for the latest ' + countryName + ' politics news from today or in the last 24 hours. Focus specifically on ' + countryName + ' domestic politics, government, elections, legislation, and political figures.\n\nCreate exactly 6 quiz questions based on REAL current ' + countryName + ' political news stories. Focus on MAJOR stories that most people following ' + countryName + ' politics would have heard about.\n\nRULES:\n- Questions about verifiable public facts, NOT opinions\n- Write everything in YOUR OWN words\n- Do NOT name any news outlet\n- Keep explanations to 1 sentence\n- Add a "perspective" field: one sentence on how this story is viewed differently by different political sides or internationally\n- Add a "context" field: 2-3 sentences of background\n- Add a "funFact" field: one surprising or little-known fact related to the topic that most people would not know\n- The "headline" must NEVER reveal the correct answer\n- Do NOT include any HTML tags, citation tags, or markup' + avoidSection + '\n\nReturn ONLY a JSON array. Each item:\n{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label","perspective":"1 sentence","context":"2-3 sentences","funFact":"1 surprising fact"}\n\nIMPORTANT: Return ONLY the JSON array. No markdown, no backticks, no HTML tags, no text before or after the array.'
+    : 'Search for the latest ' + category + ' news from today or in the last 24 hours. Stories MUST reflect the most current status. Use DIVERSE international sources: CNN, BBC, Al Jazeera, Reuters, AP, France 24, Deutsche Welle, NHK, The Guardian, and others.\n\nCreate exactly 6 quiz questions based on REAL current news stories. Focus on MAJOR stories that most people would have heard about — avoid obscure or overly technical details. Questions should test general awareness, not insider knowledge.\n\nRULES:\n- Questions about verifiable public facts, NOT opinions\n- Write everything in YOUR OWN words\n- Do NOT name any news outlet\n- Keep explanations to 1 sentence\n- Mix stories from different world regions\n- Add a "perspective" field: one sentence on how coverage differs across regions\n- Add a "context" field: 2-3 sentences of background\n- Add a "funFact" field: one surprising or little-known fact related to the topic that most people would not know\n- The "headline" must NEVER reveal the correct answer\n- Do NOT include any HTML tags, citation tags, or markup' + avoidSection + '\n\nReturn ONLY a JSON array. Each item:\n{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence","headline":"Short topic label","perspective":"1 sentence","context":"2-3 sentences","funFact":"1 surprising fact"}\n\nIMPORTANT: Return ONLY the JSON array. No markdown, no backticks, no HTML tags, no text before or after the array.';
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -92,6 +119,11 @@ export async function GET(request: Request) {
     const questions = await generateQuiz(cat);
     await redis.set('pending:' + today + ':' + cat.toLowerCase(), JSON.stringify(questions), { ex: 86400 });
     await redis.set(statusKey, JSON.stringify({ status: 'success', questionCount: questions.length, generatedAt: new Date().toISOString() }), { ex: 86400 });
+
+    // Save headlines for repeat prevention
+    const headlines = questions.map((q: any) => q.headline).filter((h: string) => h);
+    await saveHeadlines(cat.toLowerCase(), headlines);
+
     return NextResponse.json({ success: true, category: cat, questionsGenerated: questions.length });
   } catch (e: any) {
     await redis.set(statusKey, JSON.stringify({ status: 'failed', error: e.message, failedAt: new Date().toISOString() }), { ex: 86400 }).catch(() => {});
