@@ -28,7 +28,9 @@ export async function GET(request: Request) {
       const pending = approved || await redis.get('pending:' + today + ':' + category);
 
       if (pending) {
-        await redis.set('quiz:' + today + ':' + category, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
+        const data = typeof pending === 'string' ? pending : JSON.stringify(pending);
+        await redis.set('quiz:' + today + ':' + category, data, { ex: 86400 });
+        await redis.set('quiz:latest:' + category, data);
         results.push(category + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
         results.push(category + ': no pending questions found');
@@ -45,7 +47,9 @@ export async function GET(request: Request) {
       const pending = approved || await redis.get('pending:' + today + ':' + key);
 
       if (pending) {
-        await redis.set('quiz:' + today + ':' + key, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
+        const data = typeof pending === 'string' ? pending : JSON.stringify(pending);
+        await redis.set('quiz:' + today + ':' + key, data, { ex: 86400 });
+        await redis.set('quiz:latest:' + key, data);
         results.push(key + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
         results.push(key + ': no pending questions found');

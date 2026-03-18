@@ -17,6 +17,33 @@ const DISPLAY_NAMES: Record<string, string> = {
   'politics:au': '🇦🇺 Australia Politics',
 };
 
+const SHORT_NAMES: Record<string, string> = {
+  'world': 'WRL',
+  'tech': 'TEC',
+  'science': 'SCI',
+  'business': 'BIZ',
+  'sports': 'SPT',
+  'culture': 'CUL',
+  'politics:us': '🇺🇸',
+  'politics:ca': '🇨🇦',
+  'politics:uk': '🇬🇧',
+  'politics:au': '🇦🇺',
+};
+
+function getStatusInfo(catData: any) {
+  if (!catData) return { color: '#9CA3AF', label: 'No data', icon: '—' };
+  const gs = catData.genStatus;
+  const status = typeof gs === 'string' ? JSON.parse(gs) : gs;
+
+  if (catData.live) return { color: '#059669', label: 'Live', icon: '✓' };
+  if (catData.approved) return { color: '#2563EB', label: 'Approved', icon: '✓' };
+  if (status?.status === 'success') return { color: '#16A34A', label: status.questionCount + ' Qs', icon: '✓' };
+  if (status?.status === 'generating') return { color: '#D97706', label: 'Generating...', icon: '⏳' };
+  if (status?.status === 'failed') return { color: '#DC2626', label: 'FAILED', icon: '✗' };
+  if (catData.pending) return { color: '#16A34A', label: 'Pending', icon: '✓' };
+  return { color: '#9CA3AF', label: 'Waiting', icon: '—' };
+}
+
 export default function AdminPage() {
   const [pw, setPw] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
@@ -98,6 +125,16 @@ export default function AdminPage() {
     fetchData();
   };
 
+  const allOk = data && CATS.every(cat => {
+    const s = getStatusInfo(data.categories?.[cat]);
+    return s.icon === '✓';
+  });
+
+  const anyFailed = data && CATS.some(cat => {
+    const s = getStatusInfo(data.categories?.[cat]);
+    return s.icon === '✗';
+  });
+
   if (!loggedIn) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-5">
@@ -133,6 +170,43 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* STATUS DASHBOARD */}
+        <div className={'mb-6 p-4 rounded-xl border-2 ' + (anyFailed ? 'border-red-300 bg-red-50' : allOk ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50')}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold font-sans">
+              {anyFailed ? '🚨 Generation failed — check red categories below' : allOk ? '✅ All categories ready' : '⏳ Generation in progress...'}
+            </p>
+            <button onClick={fetchData} className="text-xs font-sans text-gray-400 hover:text-gray-600">↻ Refresh</button>
+          </div>
+          <div className="grid grid-cols-10 gap-1.5">
+            {CATS.map(cat => {
+              const info = getStatusInfo(data?.categories?.[cat]);
+              return (
+                <div key={cat} className="text-center">
+                  <div className="w-full aspect-square rounded-lg flex items-center justify-center text-white text-xs font-bold font-sans"
+                    style={{ background: info.color }}>
+                    {info.icon}
+                  </div>
+                  <p className="text-[9px] text-gray-500 font-sans mt-1 leading-tight">{SHORT_NAMES[cat]}</p>
+                </div>
+              );
+            })}
+          </div>
+          {anyFailed && (
+            <div className="mt-3 pt-3 border-t border-red-200">
+              {CATS.filter(cat => getStatusInfo(data?.categories?.[cat]).icon === '✗').map(cat => {
+                const gs = data?.categories?.[cat]?.genStatus;
+                const status = typeof gs === 'string' ? JSON.parse(gs) : gs;
+                return (
+                  <p key={cat} className="text-xs text-red-700 font-sans mb-1">
+                    <span className="font-semibold">{DISPLAY_NAMES[cat]}:</span> {status?.error || 'Unknown error'} — {status?.failedAt ? new Date(status.failedAt).toLocaleTimeString() : ''}
+                  </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {message && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm font-sans">
             {message}
@@ -151,7 +225,7 @@ export default function AdminPage() {
                 <div>
                   <h2 className="font-bold text-lg" style={{ fontFamily: "'Georgia', serif" }}>{DISPLAY_NAMES[cat] || cat}</h2>
                   <p className="text-xs font-sans text-gray-400">
-                    {catData.approved ? '✅ Approved' : catData.live ? '🟢 Live' : '⏳ Pending review'}
+                    {catData.approved ? '✅ Approved' : catData.live ? '🟢 Live' : getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed' : '⏳ Pending review'}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -266,7 +340,9 @@ export default function AdminPage() {
                   ))}
                 </div>
               ) : (
-                <div className="p-4 text-center text-sm text-gray-400 font-sans">No questions generated yet</div>
+                <div className="p-4 text-center text-sm text-gray-400 font-sans">
+                  {getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed — see error above' : 'No questions generated yet'}
+                </div>
               )}
             </div>
           );

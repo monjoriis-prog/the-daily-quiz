@@ -28,10 +28,12 @@ export async function GET(request: NextRequest) {
     const pending = await redis.get('pending:' + today + ':' + key);
     const approved = await redis.get('approved:' + today + ':' + key);
     const live = await redis.get('quiz:' + today + ':' + key);
+    const genStatus = await redis.get('gen-status:' + today + ':' + key);
     data[key] = {
       pending: pending || null,
       approved: !!approved,
       live: !!live,
+      genStatus: genStatus || null,
     };
   }
 
