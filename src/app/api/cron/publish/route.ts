@@ -23,9 +23,11 @@ export async function GET(request: Request) {
   const results: string[] = [];
 
   const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  const secondsUntilMidnight = Math.floor((midnight.getTime() - now.getTime()) / 1000);
+  const edtNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const edtMidnight = new Date(edtNow);
+  edtMidnight.setDate(edtMidnight.getDate() + 1);
+  edtMidnight.setHours(0, 0, 0, 0);
+  const secondsUntilMidnight = Math.floor((edtMidnight.getTime() - edtNow.getTime()) / 1000);
 
   for (const category of CATEGORIES) {
     try {
