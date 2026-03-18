@@ -2,15 +2,12 @@
 
 import { useState } from 'react';
 
-const CATS = ['world', 'tech', 'science', 'business', 'sports', 'culture', 'politics:us', 'politics:ca', 'politics:uk', 'politics:au'];
 
 const DISPLAY_NAMES: Record<string, string> = {
   'world': 'World',
   'tech': 'Tech',
   'science': 'Science',
   'business': 'Business',
-  'sports': 'Sports',
-  'culture': 'Culture',
   'politics:us': '🇺🇸 US Politics',
   'politics:ca': '🇨🇦 Canada Politics',
   'politics:uk': '🇬🇧 UK Politics',
@@ -22,8 +19,6 @@ const SHORT_NAMES: Record<string, string> = {
   'tech': 'TEC',
   'science': 'SCI',
   'business': 'BIZ',
-  'sports': 'SPT',
-  'culture': 'CUL',
   'politics:us': '🇺🇸',
   'politics:ca': '🇨🇦',
   'politics:uk': '🇬🇧',

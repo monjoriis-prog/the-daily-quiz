@@ -9,8 +9,6 @@ const CATEGORIES = [
   { id: 'tech', label: 'Tech', tag: 'TECHNOLOGY', color: '#2563EB', hasCountries: false, free: false },
   { id: 'science', label: 'Science', tag: 'SCIENCE', color: '#059669', hasCountries: false, free: false },
   { id: 'business', label: 'Business', tag: 'MARKETS', color: '#D97706', hasCountries: false, free: false },
-  { id: 'sports', label: 'Sports', tag: 'SPORTS', color: '#DC2626', hasCountries: false, free: false },
-  { id: 'entertainment', label: 'Culture', tag: 'CULTURE', color: '#7C3AED', hasCountries: false, free: false },
   { id: 'politics', label: 'Politics', tag: 'POLITICS', color: '#6B7280', hasCountries: true, free: false },
 ];
 

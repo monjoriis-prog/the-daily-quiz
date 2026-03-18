@@ -7,7 +7,7 @@ const redis = new Redis({
 });
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dailyquiz2026';
-const CATEGORIES = ['world', 'tech', 'science', 'business', 'sports', 'culture'];
+const CATEGORIES = ['world', 'tech', 'science', 'business'];
 const POLITICS_COUNTRIES = ['us', 'ca', 'uk', 'au'];
 const ALL_KEYS = [...CATEGORIES, ...POLITICS_COUNTRIES.map(c => 'politics:' + c)];
 
