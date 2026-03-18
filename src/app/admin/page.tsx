@@ -263,7 +263,7 @@ export default function AdminPage() {
             onKeyDown={e => e.key === 'Enter' && fetchData()}
             className="w-full p-3 border border-gray-200 rounded-lg mb-3 font-sans text-sm"
           />
-          <button onClick={fetchData} disabled={loading} className="w-full py-3 bg-gray-900 text-white rounded-lg font-sans font-semibold text-sm">
+          <button onClick={() => fetchData()} disabled={loading} className="w-full py-3 bg-gray-900 text-white rounded-lg font-sans font-semibold text-sm">
             {loading ? 'Loading…' : 'Login'}
           </button>
           {message && <p className="text-red-500 text-sm font-sans mt-3 text-center">{message}</p>}
