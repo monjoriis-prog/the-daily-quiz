@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+const CATS = ['world', 'tech', 'science', 'business', 'politics:us', 'politics:ca', 'politics:uk', 'politics:au'];
 
 const DISPLAY_NAMES: Record<string, string> = {
   'world': 'World',
