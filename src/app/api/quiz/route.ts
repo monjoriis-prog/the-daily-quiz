@@ -12,6 +12,12 @@ function getToday() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
+function getYesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
 export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get('category');
   const country = request.nextUrl.searchParams.get('country');
@@ -21,22 +27,34 @@ export async function GET(request: NextRequest) {
   }
 
   const today = getToday();
+  const yesterday = getYesterday();
 
-  let cacheKey: string;
+  let keySuffix: string;
   if (category.toLowerCase() === 'politics' && country && VALID_COUNTRIES.includes(country)) {
-    cacheKey = 'quiz:' + today + ':politics:' + country;
+    keySuffix = 'politics:' + country;
   } else if (category.toLowerCase() === 'politics') {
-    cacheKey = 'quiz:' + today + ':politics:us';
+    keySuffix = 'politics:us';
   } else {
-    cacheKey = 'quiz:' + today + ':' + category.toLowerCase();
+    keySuffix = category.toLowerCase();
   }
 
   try {
-    const cached = await redis.get(cacheKey);
-    if (cached) {
+    // Try today's quiz first
+    const todayData = await redis.get('quiz:' + today + ':' + keySuffix);
+    if (todayData) {
       return NextResponse.json({
-        questions: cached,
+        questions: todayData,
         generatedAt: today,
+        cached: true,
+      });
+    }
+
+    // If today's quiz isn't published yet, show yesterday's
+    const yesterdayData = await redis.get('quiz:' + yesterday + ':' + keySuffix);
+    if (yesterdayData) {
+      return NextResponse.json({
+        questions: yesterdayData,
+        generatedAt: yesterday,
         cached: true,
       });
     }

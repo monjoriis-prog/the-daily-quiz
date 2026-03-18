@@ -22,20 +22,13 @@ export async function GET(request: Request) {
   const today = getToday();
   const results: string[] = [];
 
-  const now = new Date();
-  const edtNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const edtMidnight = new Date(edtNow);
-  edtMidnight.setDate(edtMidnight.getDate() + 1);
-  edtMidnight.setHours(0, 0, 0, 0);
-  const secondsUntilMidnight = Math.floor((edtMidnight.getTime() - edtNow.getTime()) / 1000);
-
   for (const category of CATEGORIES) {
     try {
       const approved = await redis.get('approved:' + today + ':' + category);
       const pending = approved || await redis.get('pending:' + today + ':' + category);
 
       if (pending) {
-        await redis.set('quiz:' + today + ':' + category, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: secondsUntilMidnight });
+        await redis.set('quiz:' + today + ':' + category, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
         results.push(category + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
         results.push(category + ': no pending questions found');
@@ -52,7 +45,7 @@ export async function GET(request: Request) {
       const pending = approved || await redis.get('pending:' + today + ':' + key);
 
       if (pending) {
-        await redis.set('quiz:' + today + ':' + key, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: secondsUntilMidnight });
+        await redis.set('quiz:' + today + ':' + key, typeof pending === 'string' ? pending : JSON.stringify(pending), { ex: 86400 });
         results.push(key + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
         results.push(key + ': no pending questions found');
