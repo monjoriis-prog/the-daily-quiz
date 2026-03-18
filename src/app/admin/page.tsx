@@ -30,6 +30,19 @@ const SHORT_NAMES: Record<string, string> = {
   'politics:au': '🇦🇺',
 };
 
+function emptyQuestion() {
+  return {
+    question: '',
+    options: ['', '', '', ''],
+    correct: 0,
+    explanation: '',
+    headline: '',
+    perspective: '',
+    context: '',
+    funFact: '',
+  };
+}
+
 function getStatusInfo(catData: any) {
   if (!catData) return { color: '#9CA3AF', label: 'No data', icon: '—' };
   const gs = catData.genStatus;
@@ -52,6 +65,8 @@ export default function AdminPage() {
   const [message, setMessage] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [editQuestions, setEditQuestions] = useState<any[]>([]);
+  const [manualCat, setManualCat] = useState<string | null>(null);
+  const [manualQuestions, setManualQuestions] = useState<any[]>([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -122,6 +137,63 @@ export default function AdminPage() {
     setMessage(d.message || d.error);
     setEditing(null);
     setEditQuestions([]);
+    fetchData();
+  };
+
+  // Manual entry functions
+  const startManual = (cat: string) => {
+    setManualCat(cat);
+    setManualQuestions([emptyQuestion()]);
+  };
+
+  const cancelManual = () => {
+    setManualCat(null);
+    setManualQuestions([]);
+  };
+
+  const addManualQuestion = () => {
+    setManualQuestions([...manualQuestions, emptyQuestion()]);
+  };
+
+  const removeManualQuestion = (idx: number) => {
+    if (manualQuestions.length <= 1) return;
+    setManualQuestions(manualQuestions.filter((_, i) => i !== idx));
+  };
+
+  const updateManualQuestion = (qIdx: number, field: string, value: any) => {
+    const updated = [...manualQuestions];
+    updated[qIdx] = { ...updated[qIdx], [field]: value };
+    setManualQuestions(updated);
+  };
+
+  const updateManualOption = (qIdx: number, optIdx: number, value: string) => {
+    const updated = [...manualQuestions];
+    const opts = [...updated[qIdx].options];
+    opts[optIdx] = value;
+    updated[qIdx] = { ...updated[qIdx], options: opts };
+    setManualQuestions(updated);
+  };
+
+  const saveManual = async () => {
+    if (!manualCat) return;
+    const valid = manualQuestions.filter(q =>
+      q.question.trim() &&
+      q.options.every((o: string) => o.trim()) &&
+      q.headline.trim()
+    );
+    if (valid.length === 0) {
+      setMessage('Please fill in at least one complete question (question, all 4 options, and headline are required)');
+      return;
+    }
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw, category: manualCat, action: 'manual-add', questions: valid }),
+    });
+    const d = await res.json();
+    setMessage(d.message || d.error);
+    setManualCat(null);
+    setManualQuestions([]);
     fetchData();
   };
 
@@ -218,6 +290,7 @@ export default function AdminPage() {
           if (!catData) return null;
           const questions = catData.pending ? (typeof catData.pending === 'string' ? JSON.parse(catData.pending) : catData.pending) : [];
           const isEditing = editing === cat;
+          const isManual = manualCat === cat;
 
           return (
             <div key={cat} className="mb-6 border border-gray-200 rounded-xl overflow-hidden">
@@ -229,12 +302,12 @@ export default function AdminPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {!isEditing && questions.length > 0 && (
+                  {!isEditing && !isManual && questions.length > 0 && (
                     <button onClick={() => startEdit(cat, questions)} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-sans font-semibold text-xs">
                       Edit
                     </button>
                   )}
-                  {!isEditing && !catData.approved && questions.length > 0 && (
+                  {!isEditing && !isManual && !catData.approved && questions.length > 0 && (
                     <button onClick={() => approve(cat)} className="px-4 py-2 bg-green-600 text-white rounded-lg font-sans font-semibold text-xs">
                       Approve
                     </button>
@@ -252,7 +325,111 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {isEditing ? (
+              {/* MANUAL ENTRY FORM */}
+              {isManual ? (
+                <div className="p-4 bg-amber-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-semibold font-sans text-amber-800">Adding questions manually</p>
+                    <div className="flex gap-2">
+                      <button onClick={cancelManual} className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-lg font-sans font-semibold text-xs">
+                        Cancel
+                      </button>
+                      <button onClick={saveManual} className="px-3 py-1.5 bg-green-600 text-white rounded-lg font-sans font-semibold text-xs">
+                        Save & Approve
+                      </button>
+                    </div>
+                  </div>
+                  {manualQuestions.map((q: any, i: number) => (
+                    <div key={i} className="mb-4 p-4 bg-white rounded-lg border border-amber-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-amber-700 font-sans font-semibold">Question {i + 1}</p>
+                        {manualQuestions.length > 1 && (
+                          <button onClick={() => removeManualQuestion(i)} className="text-xs text-red-500 font-sans hover:text-red-700">Remove</button>
+                        )}
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Headline</label>
+                        <input
+                          value={q.headline}
+                          onChange={e => updateManualQuestion(i, 'headline', e.target.value)}
+                          placeholder="Short topic label"
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Question</label>
+                        <textarea
+                          value={q.question}
+                          onChange={e => updateManualQuestion(i, 'question', e.target.value)}
+                          placeholder="Write the quiz question"
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Options (click radio to set correct answer)</label>
+                        {q.options.map((opt: string, j: number) => (
+                          <div key={j} className="flex items-center gap-2 mt-1">
+                            <input
+                              type="radio"
+                              name={'manual-correct-' + i}
+                              checked={q.correct === j}
+                              onChange={() => updateManualQuestion(i, 'correct', j)}
+                            />
+                            <span className="text-xs font-semibold font-sans w-4">{String.fromCharCode(65 + j)}.</span>
+                            <input
+                              value={opt}
+                              onChange={e => updateManualOption(i, j, e.target.value)}
+                              placeholder={'Option ' + String.fromCharCode(65 + j)}
+                              className={'flex-1 p-2 border rounded text-sm font-sans ' + (q.correct === j ? 'border-green-400 bg-green-50' : 'border-gray-200')}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Explanation</label>
+                        <input
+                          value={q.explanation}
+                          onChange={e => updateManualQuestion(i, 'explanation', e.target.value)}
+                          placeholder="1 sentence explaining the answer"
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Context (optional)</label>
+                        <textarea
+                          value={q.context}
+                          onChange={e => updateManualQuestion(i, 'context', e.target.value)}
+                          placeholder="2-3 sentences of background"
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Perspective (optional)</label>
+                        <input
+                          value={q.perspective}
+                          onChange={e => updateManualQuestion(i, 'perspective', e.target.value)}
+                          placeholder="How this is viewed differently"
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="text-[10px] font-semibold text-gray-400 uppercase font-sans">Fun Fact (optional)</label>
+                        <input
+                          value={q.funFact}
+                          onChange={e => updateManualQuestion(i, 'funFact', e.target.value)}
+                          placeholder="A surprising related fact"
+                          className="w-full p-2 border border-gray-200 rounded text-sm font-sans mt-1"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={addManualQuestion} className="w-full py-2.5 rounded-lg border-2 border-dashed border-amber-300 text-amber-700 font-sans font-semibold text-xs hover:bg-amber-100">
+                    + Add Another Question
+                  </button>
+                </div>
+              ) : isEditing ? (
                 <div className="divide-y divide-gray-100">
                   {editQuestions.map((q: any, i: number) => (
                     <div key={i} className="p-4 bg-blue-50">
@@ -340,8 +517,13 @@ export default function AdminPage() {
                   ))}
                 </div>
               ) : (
-                <div className="p-4 text-center text-sm text-gray-400 font-sans">
-                  {getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed — see error above' : 'No questions generated yet'}
+                <div className="p-4 text-center">
+                  <p className="text-sm text-gray-400 font-sans mb-3">
+                    {getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed — see error above' : 'No questions generated yet'}
+                  </p>
+                  <button onClick={() => startManual(cat)} className="px-5 py-2.5 bg-amber-500 text-white rounded-lg font-sans font-semibold text-sm">
+                    + Add Questions Manually
+                  </button>
                 </div>
               )}
             </div>

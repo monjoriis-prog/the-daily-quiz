@@ -76,5 +76,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'All categories approved' });
   }
 
+  if (action === 'manual-add') {
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return NextResponse.json({ error: 'No questions provided' }, { status: 400 });
+    }
+    await redis.set('pending:' + today + ':' + category, JSON.stringify(questions), { ex: 86400 });
+    await redis.set('approved:' + today + ':' + category, JSON.stringify(questions), { ex: 86400 });
+    return NextResponse.json({ success: true, message: category + ' manually added and approved (' + questions.length + ' questions)' });
+  }
+
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
