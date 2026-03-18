@@ -21,14 +21,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Allow browsing any date via ?date=2026-03-17
+  const dateParam = request.nextUrl.searchParams.get('date');
   const today = getToday();
+  const viewDate = dateParam || today;
+  const isToday = viewDate === today;
+
   const data: any = {};
 
   for (const key of ALL_KEYS) {
-    const pending = await redis.get('pending:' + today + ':' + key);
-    const approved = await redis.get('approved:' + today + ':' + key);
-    const live = await redis.get('quiz:' + today + ':' + key);
-    const genStatus = await redis.get('gen-status:' + today + ':' + key);
+    const pending = await redis.get('pending:' + viewDate + ':' + key);
+    const approved = await redis.get('approved:' + viewDate + ':' + key);
+    const live = await redis.get('quiz:' + viewDate + ':' + key);
+    const genStatus = await redis.get('gen-status:' + viewDate + ':' + key);
     data[key] = {
       pending: pending || null,
       approved: !!approved,
@@ -37,14 +42,14 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  const review = await redis.get('review:' + today);
+  const review = await redis.get('review:' + viewDate);
 
-  return NextResponse.json({ date: today, categories: data, review });
+  return NextResponse.json({ date: viewDate, today, isToday, categories: data, review });
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { pw, category, action, questions } = body;
+  const { pw, category, action, questions, sourceDate } = body;
 
   if (pw !== ADMIN_PASSWORD) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -83,6 +88,43 @@ export async function POST(request: NextRequest) {
     await redis.set('pending:' + today + ':' + category, JSON.stringify(questions), { ex: 86400 });
     await redis.set('approved:' + today + ':' + category, JSON.stringify(questions), { ex: 86400 });
     return NextResponse.json({ success: true, message: category + ' manually added and approved (' + questions.length + ' questions)' });
+  }
+
+  if (action === 'copy-to-today') {
+    if (!sourceDate || !category) {
+      return NextResponse.json({ error: 'sourceDate and category required' }, { status: 400 });
+    }
+    // Try approved first, then pending, then live from the source date
+    const sourceData = await redis.get('approved:' + sourceDate + ':' + category)
+      || await redis.get('pending:' + sourceDate + ':' + category)
+      || await redis.get('quiz:' + sourceDate + ':' + category);
+
+    if (!sourceData) {
+      return NextResponse.json({ error: 'No questions found for ' + category + ' on ' + sourceDate }, { status: 404 });
+    }
+    const data = typeof sourceData === 'string' ? sourceData : JSON.stringify(sourceData);
+    await redis.set('pending:' + today + ':' + category, data, { ex: 86400 });
+    await redis.set('approved:' + today + ':' + category, data, { ex: 86400 });
+    return NextResponse.json({ success: true, message: category + ' copied from ' + sourceDate + ' and approved' });
+  }
+
+  if (action === 'copy-all-to-today') {
+    if (!sourceDate) {
+      return NextResponse.json({ error: 'sourceDate required' }, { status: 400 });
+    }
+    let copied = 0;
+    for (const key of ALL_KEYS) {
+      const sourceData = await redis.get('approved:' + sourceDate + ':' + key)
+        || await redis.get('pending:' + sourceDate + ':' + key)
+        || await redis.get('quiz:' + sourceDate + ':' + key);
+      if (sourceData) {
+        const data = typeof sourceData === 'string' ? sourceData : JSON.stringify(sourceData);
+        await redis.set('pending:' + today + ':' + key, data, { ex: 86400 });
+        await redis.set('approved:' + today + ':' + key, data, { ex: 86400 });
+        copied++;
+      }
+    }
+    return NextResponse.json({ success: true, message: copied + ' categories copied from ' + sourceDate + ' and approved' });
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

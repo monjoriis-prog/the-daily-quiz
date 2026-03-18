@@ -57,6 +57,16 @@ function getStatusInfo(catData: any) {
   return { color: '#9CA3AF', label: 'Waiting', icon: '—' };
 }
 
+function getTodayStr() {
+  return new Date().toLocaleDateString('en-CA');
+}
+
+function getDateStr(daysAgo: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toLocaleDateString('en-CA');
+}
+
 export default function AdminPage() {
   const [pw, setPw] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
@@ -67,17 +77,27 @@ export default function AdminPage() {
   const [editQuestions, setEditQuestions] = useState<any[]>([]);
   const [manualCat, setManualCat] = useState<string | null>(null);
   const [manualQuestions, setManualQuestions] = useState<any[]>([]);
+  const [viewDate, setViewDate] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = async (date?: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin?pw=' + pw);
+      let url = '/api/admin?pw=' + pw;
+      if (date) url += '&date=' + date;
+      const res = await fetch(url);
       const d = await res.json();
       if (d.error) { setMessage(d.error); return; }
       setData(d);
+      setViewDate(d.date || '');
       setLoggedIn(true);
     } catch { setMessage('Failed to load'); }
     setLoading(false);
+  };
+
+  const goToDate = (date: string) => {
+    setEditing(null);
+    setManualCat(null);
+    fetchData(date);
   };
 
   const approve = async (category: string) => {
@@ -88,7 +108,7 @@ export default function AdminPage() {
     });
     const d = await res.json();
     setMessage(d.message || d.error);
-    fetchData();
+    fetchData(viewDate);
   };
 
   const approveAll = async () => {
@@ -99,7 +119,7 @@ export default function AdminPage() {
     });
     const d = await res.json();
     setMessage(d.message || d.error);
-    fetchData();
+    fetchData(viewDate);
   };
 
   const startEdit = (cat: string, questions: any[]) => {
@@ -137,7 +157,7 @@ export default function AdminPage() {
     setMessage(d.message || d.error);
     setEditing(null);
     setEditQuestions([]);
-    fetchData();
+    fetchData(viewDate);
   };
 
   // Manual entry functions
@@ -194,8 +214,31 @@ export default function AdminPage() {
     setMessage(d.message || d.error);
     setManualCat(null);
     setManualQuestions([]);
-    fetchData();
+    fetchData(viewDate);
   };
+
+  // Copy functions
+  const copyToToday = async (category: string) => {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw, category, action: 'copy-to-today', sourceDate: viewDate }),
+    });
+    const d = await res.json();
+    setMessage(d.message || d.error);
+  };
+
+  const copyAllToToday = async () => {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pw, action: 'copy-all-to-today', sourceDate: viewDate }),
+    });
+    const d = await res.json();
+    setMessage(d.message || d.error);
+  };
+
+  const isToday = data?.isToday !== false;
 
   const allOk = data && CATS.every(cat => {
     const s = getStatusInfo(data.categories?.[cat]);
@@ -232,15 +275,45 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-white p-5">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-gray-900">
+        <div className="flex items-center justify-between mb-4 pb-4 border-b-2 border-gray-900">
           <div>
             <h1 className="text-2xl font-bold" style={{ fontFamily: "'Georgia', serif" }}>Quiz Review</h1>
-            <p className="text-sm text-gray-400 font-sans">{data?.date}</p>
+            <p className="text-sm text-gray-400 font-sans">{data?.date} {isToday ? '(today)' : ''}</p>
           </div>
-          <button onClick={approveAll} className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-sans font-semibold text-sm">
-            ✓ Approve All
-          </button>
+          {isToday && (
+            <button onClick={approveAll} className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-sans font-semibold text-sm">
+              ✓ Approve All
+            </button>
+          )}
         </div>
+
+        {/* DATE NAVIGATION */}
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <button onClick={() => goToDate(getTodayStr())} className={'px-3 py-1.5 rounded-lg font-sans font-semibold text-xs ' + (isToday ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600')}>
+            Today
+          </button>
+          {[1, 2, 3, 4, 5, 6].map(d => (
+            <button key={d} onClick={() => goToDate(getDateStr(d))} className={'px-3 py-1.5 rounded-lg font-sans text-xs ' + (viewDate === getDateStr(d) ? 'bg-gray-900 text-white font-semibold' : 'bg-gray-100 text-gray-600')}>
+              {d === 1 ? 'Yesterday' : d + 'd ago'}
+            </button>
+          ))}
+          <input
+            type="date"
+            value={viewDate}
+            onChange={e => goToDate(e.target.value)}
+            className="px-2 py-1.5 border border-gray-200 rounded-lg font-sans text-xs"
+          />
+        </div>
+
+        {/* COPY ALL BANNER - only when viewing a past date */}
+        {!isToday && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <p className="text-sm font-sans text-blue-700">Viewing <span className="font-semibold">{viewDate}</span> — copy questions to use today</p>
+            <button onClick={copyAllToToday} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-sans font-semibold text-xs">
+              Copy All to Today
+            </button>
+          </div>
+        )}
 
         {/* STATUS DASHBOARD */}
         <div className={'mb-6 p-4 rounded-xl border-2 ' + (anyFailed ? 'border-red-300 bg-red-50' : allOk ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50')}>
@@ -248,7 +321,7 @@ export default function AdminPage() {
             <p className="text-sm font-semibold font-sans">
               {anyFailed ? '🚨 Generation failed — check red categories below' : allOk ? '✅ All categories ready' : '⏳ Generation in progress...'}
             </p>
-            <button onClick={fetchData} className="text-xs font-sans text-gray-400 hover:text-gray-600">↻ Refresh</button>
+            <button onClick={() => fetchData(viewDate)} className="text-xs font-sans text-gray-400 hover:text-gray-600">↻ Refresh</button>
           </div>
           <div className="grid grid-cols-10 gap-1.5">
             {CATS.map(cat => {
@@ -298,16 +371,22 @@ export default function AdminPage() {
                 <div>
                   <h2 className="font-bold text-lg" style={{ fontFamily: "'Georgia', serif" }}>{DISPLAY_NAMES[cat] || cat}</h2>
                   <p className="text-xs font-sans text-gray-400">
-                    {catData.approved ? '✅ Approved' : catData.live ? '🟢 Live' : getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed' : '⏳ Pending review'}
+                    {catData.approved ? '✅ Approved' : catData.live ? '🟢 Live' : getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed' : questions.length > 0 ? '⏳ Pending review' : 'No data'}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {!isEditing && !isManual && questions.length > 0 && (
+                  {/* Copy to Today button - shown when viewing past date and questions exist */}
+                  {!isToday && questions.length > 0 && (
+                    <button onClick={() => copyToToday(cat)} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-sans font-semibold text-xs">
+                      Copy to Today
+                    </button>
+                  )}
+                  {isToday && !isEditing && !isManual && questions.length > 0 && (
                     <button onClick={() => startEdit(cat, questions)} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-sans font-semibold text-xs">
                       Edit
                     </button>
                   )}
-                  {!isEditing && !isManual && !catData.approved && questions.length > 0 && (
+                  {isToday && !isEditing && !isManual && !catData.approved && questions.length > 0 && (
                     <button onClick={() => approve(cat)} className="px-4 py-2 bg-green-600 text-white rounded-lg font-sans font-semibold text-xs">
                       Approve
                     </button>
@@ -521,9 +600,11 @@ export default function AdminPage() {
                   <p className="text-sm text-gray-400 font-sans mb-3">
                     {getStatusInfo(catData).icon === '✗' ? '🔴 Generation failed — see error above' : 'No questions generated yet'}
                   </p>
-                  <button onClick={() => startManual(cat)} className="px-5 py-2.5 bg-amber-500 text-white rounded-lg font-sans font-semibold text-sm">
-                    + Add Questions Manually
-                  </button>
+                  {isToday && (
+                    <button onClick={() => startManual(cat)} className="px-5 py-2.5 bg-amber-500 text-white rounded-lg font-sans font-semibold text-sm">
+                      + Add Questions Manually
+                    </button>
+                  )}
                 </div>
               )}
             </div>
