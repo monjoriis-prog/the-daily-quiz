@@ -104,8 +104,6 @@ export default function Home() {
   const [showContext, setShowContext] = useState(false);
   const [copied, setCopied] = useState(false);
   const [timer, setTimer] = useState(MAX_TIME);
-  const [confettiTrigger, setConfettiTrigger] = useState(0);
-  const [confettiType, setConfettiType] = useState<'normal' | 'big' | 'perfect'>('normal');
   const [goldTrigger, setGoldTrigger] = useState(0);
   const [cardRevealed, setCardRevealed] = useState(false);
   const [lastBonus, setLastBonus] = useState<number | null>(null);
@@ -222,9 +220,6 @@ export default function Home() {
       setRoundCorrect(r => r + 1);
       setStreak(s => s + 1);
       setLastBonus(speedBonus > 0 ? speedBonus : null);
-      if (streak + 1 >= 3) { try { playStreak(); } catch {} setConfettiType('big'); }
-      else { try { playCorrect(); } catch {} setConfettiType('normal'); }
-      setConfettiTrigger(t => t + 1);
     } else {
       setStreak(0);
       setLastBonus(null);
