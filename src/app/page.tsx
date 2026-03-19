@@ -253,7 +253,7 @@ export default function Home() {
   };
 
   const shareText = questions && screen === 'results'
-    ? '📰 Newzplay — ' + getDisplayLabel() + '\n' + Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('') + '\nScore: ' + score + ' pts · ' + roundCorrect + '/' + questions.length + ' correct\n\nCan you beat me? Play the news.\nhttps://the-daily-quiz.vercel.app'
+    ? '📰 Newzplay — ' + getDisplayLabel() + '\n' + Array.from({ length: questions.length }, (_, i) => i < roundCorrect ? '🟩' : '⬜').join('') + '\nScore: ' + score + ' pts · ' + roundCorrect + '/' + questions.length + ' correct\n\nCan you beat me? Play the news.\nhttps://newzplay.vercel.app'
     : '';
 
   const handleCopy = async () => { try { await navigator.clipboard.writeText(shareText); } catch {} setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -595,7 +595,7 @@ export default function Home() {
               <div className="mb-8 p-5 bg-gray-50 rounded-lg border border-gray-200 text-center">
                 <p className="text-sm font-sans text-gray-500 mb-4">Think your friends would do better? Send them the quiz and find out.</p>
                 <div className="flex gap-2">
-                  <button onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('Think you know the news? Play the news. 👉 https://the-daily-quiz.vercel.app'), '_blank')} className="flex-1 py-3 rounded-lg text-white font-sans font-semibold text-sm" style={{ background:'#25D366' }}>Send Quiz</button>
+                  <button onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('Think you know the news? Play the news. 👉 https://newzplay.vercel.app'), '_blank')} className="flex-1 py-3 rounded-lg text-white font-sans font-semibold text-sm" style={{ background:'#25D366' }}>Send Quiz</button>
                   <button onClick={handleCopy} className="flex-1 py-3 rounded-lg border-[1.5px] border-gray-200 font-sans font-semibold text-sm" style={{ background:copied?'#059669':'#FFF', color:copied?'#FFF':'#1A1A1A' }}>{copied ? '✓ Copied!' : '📋 Copy Link'}</button>
                 </div>
               </div>
