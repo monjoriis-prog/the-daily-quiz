@@ -290,7 +290,6 @@ export default function Home() {
         .score-font { font-family:'DM Sans',system-ui,-apple-system,sans-serif; font-variant-numeric:tabular-nums; }
       `}</style>
 
-      <Confetti trigger={confettiTrigger} intensity={confettiType} />
       <GoldConfetti trigger={goldTrigger} />
 
       <div className="max-w-xl mx-auto px-5">
