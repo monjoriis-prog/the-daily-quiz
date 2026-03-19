@@ -218,7 +218,7 @@ export default function Home() {
       const totalBonus = speedBonus + streakBonus;
       setScore(s => s + 200 + totalBonus);
       setRoundCorrect(r => r + 1);
-      setStreak(s => s + 1);
+      setStreak(s => s + 1); if (streak + 1 >= 3) { try { playStreak(); } catch {} } else { try { playCorrect(); } catch {} }
       setLastBonus(speedBonus > 0 ? speedBonus : null);
     } else {
       setStreak(0);
