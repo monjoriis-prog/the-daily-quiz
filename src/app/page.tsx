@@ -111,6 +111,7 @@ export default function Home() {
   const [selectedCountry, setSelectedCountry] = useState('us');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isNative, setIsNative] = useState(false);
+  const [trialActive, setTrialActive] = useState(true);
 
   const handleSubscribe = async () => {
     const w = window as any;
@@ -148,6 +149,19 @@ export default function Home() {
     checkSub();
   }, []);
   const [stats, setStats] = useState({ totalPoints: 0, streak: 0, lastPlayedDate: null as string | null, gamesPlayed: 0 });
+
+  // Trial system: 1 day free access, then paywall
+  useEffect(() => {
+    const firstLaunch = localStorage.getItem("newzplay_first_launch");
+    if (!firstLaunch) {
+      localStorage.setItem("newzplay_first_launch", new Date().toISOString());
+      setTrialActive(true);
+    } else {
+      const launchDate = new Date(firstLaunch);
+      const hoursSinceLaunch = (new Date().getTime() - launchDate.getTime()) / (1000 * 60 * 60);
+      setTrialActive(hoursSinceLaunch < 24);
+    }
+  }, []);
   const [resultsSaved, setResultsSaved] = useState(false);
   const timerRef = useRef<any>(null);
   const loadingMsgRef = useRef<any>(null);
@@ -442,7 +456,7 @@ export default function Home() {
             )}
             <div className="flex flex-col pt-2">
               {CATEGORIES.map(cat => {
-                const locked = !cat.free && !isSubscribed;
+                const locked = !isSubscribed && !trialActive;
                 return (
                   <div key={cat.id} className="border-b border-gray-200">
                     <button onClick={() => startQuiz(cat)} disabled={loading !== null}
@@ -482,6 +496,7 @@ export default function Home() {
             {!isSubscribed && (
               <button onClick={() => setScreen('paywall')} className="w-full mt-4 py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
                 Unlock All Categories — $4.99/mo
+                <p className="text-center text-xs text-gray-400 font-sans mt-2">Use code <span className="font-semibold text-amber-600">NEWZPLAY10</span> for 10% off your first month</p>
               </button>
             )}
             <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily</p>
