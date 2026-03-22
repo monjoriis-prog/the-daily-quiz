@@ -109,7 +109,44 @@ export default function Home() {
   const [lastBonus, setLastBonus] = useState<number | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState('us');
-  const [isSubscribed, setIsSubscribed] = useState(true);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isNative, setIsNative] = useState(false);
+
+  const handleSubscribe = async () => {
+    const w = window as any;
+    if (w.Capacitor?.Plugins?.SubscriptionPlugin) {
+      try {
+        const result = await w.Capacitor.Plugins.SubscriptionPlugin.purchase();
+        if (result.isSubscribed) { setIsSubscribed(true); setScreen('home'); }
+      } catch {}
+    }
+  };
+
+  const handleRestore = async () => {
+    const w = window as any;
+    if (w.Capacitor?.Plugins?.SubscriptionPlugin) {
+      try {
+        const result = await w.Capacitor.Plugins.SubscriptionPlugin.restore();
+        if (result.isSubscribed) { setIsSubscribed(true); setScreen('home'); }
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    const checkSub = async () => {
+      const w = window as any;
+      if (w.Capacitor && w.Capacitor.Plugins && w.Capacitor.Plugins.SubscriptionPlugin) {
+        setIsNative(true);
+        try {
+          const result = await w.Capacitor.Plugins.SubscriptionPlugin.getStatus();
+          setIsSubscribed(result.isSubscribed);
+        } catch { setIsSubscribed(false); }
+      } else {
+        setIsSubscribed(true);
+      }
+    };
+    checkSub();
+  }, []);
   const [stats, setStats] = useState({ totalPoints: 0, streak: 0, lastPlayedDate: null as string | null, gamesPlayed: 0 });
   const [resultsSaved, setResultsSaved] = useState(false);
   const timerRef = useRef<any>(null);
@@ -308,7 +345,7 @@ export default function Home() {
               <div className="rounded-2xl p-6 mb-6" style={{ background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)' }}>
                 <p className="text-[10px] tracking-[3px] uppercase font-sans text-gray-400 mb-4">PRO MEMBERSHIP</p>
                 <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-4xl font-bold text-white score-font">$3.99</span>
+                  <span className="text-4xl font-bold text-white score-font">$4.99</span>
                   <span className="text-sm text-gray-400 font-sans">/month</span>
                 </div>
                 <div className="space-y-3">
@@ -331,9 +368,9 @@ export default function Home() {
                 </div>
               </div>
               <button className="w-full py-4 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity mb-3">
-                Subscribe — $3.99/month
+                Subscribe — $4.99/month
               </button>
-              <button className="w-full py-3 rounded-lg border-[1.5px] border-gray-200 text-gray-500 font-sans font-semibold text-sm hover:bg-gray-50 transition-colors mb-3">
+              <button className="w-full py-3 rounded-lg border-[1.5px] border-gray-200 text-gray-500 font-sans font-semibold text-sm hover:bg-gray-50 transition-colors mb-3" onClick={handleRestore}>
                 Restore Purchase
               </button>
               <button onClick={goHome} className="w-full py-3 text-gray-400 font-sans text-sm hover:text-gray-600 transition-colors">
@@ -444,7 +481,7 @@ export default function Home() {
             </div>
             {!isSubscribed && (
               <button onClick={() => setScreen('paywall')} className="w-full mt-4 py-3.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm hover:opacity-85 transition-opacity">
-                Unlock All Categories — $3.99/mo
+                Unlock All Categories — $4.99/mo
               </button>
             )}
             <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at 6 PM EST</p>
@@ -656,7 +693,7 @@ export default function Home() {
               <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-gray-200 text-center">
                 <p className="text-sm font-semibold mb-1">Want to play more categories?</p>
                 <p className="text-xs text-gray-400 font-sans mb-3">Unlock Tech, Science, Business, Sports, Culture & Politics</p>
-                <button onClick={() => setScreen('paywall')} className="px-6 py-2.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm">Upgrade — $3.99/mo</button>
+                <button onClick={() => setScreen('paywall')} className="px-6 py-2.5 rounded-lg bg-gray-900 text-white font-sans font-semibold text-sm">Upgrade — $4.99/mo</button>
               </div>
             )}
 
