@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
       if (pending) {
         const data = typeof pending === 'string' ? pending : JSON.stringify(pending);
-        await redis.set('quiz:' + today + ':' + category, data, { ex: 86400 });
+        await redis.set('quiz:' + today + ':' + category, data, { ex: 604800 });
         await redis.set('quiz:latest:' + category, data);
         results.push(category + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
       if (pending) {
         const data = typeof pending === 'string' ? pending : JSON.stringify(pending);
-        await redis.set('quiz:' + today + ':' + key, data, { ex: 86400 });
+        await redis.set('quiz:' + today + ':' + key, data, { ex: 604800 });
         await redis.set('quiz:latest:' + key, data);
         results.push(key + ': published ' + (approved ? '(approved)' : '(auto-published)'));
       } else {
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     }
   }
 
-  await redis.set('review:' + today, JSON.stringify({ status: 'published', publishedAt: new Date().toISOString() }), { ex: 86400 });
+  await redis.set('review:' + today, JSON.stringify({ status: 'published', publishedAt: new Date().toISOString() }), { ex: 604800 });
 
   return NextResponse.json({ success: true, date: today, results });
 }

@@ -17,7 +17,7 @@ return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
 // Publish a quiz so users can see it immediately
 async function publishQuiz(today: string, category: string, data: string) {
-  await redis.set('quiz:' + today + ':' + category, data, { ex: 86400 });
+  await redis.set('quiz:' + today + ':' + category, data, { ex: 604800 });
   await redis.set('quiz:latest:' + category, data);
 }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     const pending = await redis.get('pending:' + today + ':' + category);
     if (pending) {
       const data = typeof pending === 'string' ? pending : JSON.stringify(pending);
-      await redis.set('approved:' + today + ':' + category, data, { ex: 86400 });
+      await redis.set('approved:' + today + ':' + category, data, { ex: 604800 });
       await publishQuiz(today, category, data);
       return NextResponse.json({ success: true, message: category + ' approved and live' });
     }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   if (action === 'approve-edited') {
     const data = JSON.stringify(questions);
-    await redis.set('approved:' + today + ':' + category, data, { ex: 86400 });
+    await redis.set('approved:' + today + ':' + category, data, { ex: 604800 });
     await publishQuiz(today, category, data);
     return NextResponse.json({ success: true, message: category + ' approved with edits and live' });
   }
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       const pending = await redis.get('pending:' + today + ':' + key);
       if (pending) {
         const data = typeof pending === 'string' ? pending : JSON.stringify(pending);
-        await redis.set('approved:' + today + ':' + key, data, { ex: 86400 });
+        await redis.set('approved:' + today + ':' + key, data, { ex: 604800 });
         await publishQuiz(today, key, data);
       }
     }
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No questions provided' }, { status: 400 });
     }
     const data = JSON.stringify(questions);
-    await redis.set('pending:' + today + ':' + category, data, { ex: 86400 });
-    await redis.set('approved:' + today + ':' + category, data, { ex: 86400 });
+    await redis.set('pending:' + today + ':' + category, data, { ex: 604800 });
+    await redis.set('approved:' + today + ':' + category, data, { ex: 604800 });
     await publishQuiz(today, category, data);
     return NextResponse.json({ success: true, message: category + ' manually added and live (' + questions.length + ' questions)' });
   }
@@ -115,8 +115,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No questions found for ' + category + ' on ' + sourceDate }, { status: 404 });
     }
     const data = typeof sourceData === 'string' ? sourceData : JSON.stringify(sourceData);
-    await redis.set('pending:' + today + ':' + category, data, { ex: 86400 });
-    await redis.set('approved:' + today + ':' + category, data, { ex: 86400 });
+    await redis.set('pending:' + today + ':' + category, data, { ex: 604800 });
+    await redis.set('approved:' + today + ':' + category, data, { ex: 604800 });
     await publishQuiz(today, category, data);
     return NextResponse.json({ success: true, message: category + ' copied from ' + sourceDate + ' and live' });
   }
@@ -132,8 +132,8 @@ export async function POST(request: NextRequest) {
         || await redis.get('quiz:' + sourceDate + ':' + key);
       if (sourceData) {
         const data = typeof sourceData === 'string' ? sourceData : JSON.stringify(sourceData);
-        await redis.set('pending:' + today + ':' + key, data, { ex: 86400 });
-        await redis.set('approved:' + today + ':' + key, data, { ex: 86400 });
+        await redis.set('pending:' + today + ':' + key, data, { ex: 604800 });
+        await redis.set('approved:' + today + ':' + key, data, { ex: 604800 });
         await publishQuiz(today, key, data);
         copied++;
       }

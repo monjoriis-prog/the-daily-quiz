@@ -122,17 +122,17 @@ export async function GET(request: Request) {
   const statusKey = 'gen-status:' + today + ':' + cat.toLowerCase();
 
   try {
-    await redis.set(statusKey, JSON.stringify({ status: 'generating', startedAt: new Date().toISOString() }), { ex: 86400 });
+    await redis.set(statusKey, JSON.stringify({ status: 'generating', startedAt: new Date().toISOString() }), { ex: 604800 });
     const questions = await generateQuiz(cat);
-    await redis.set('pending:' + today + ':' + cat.toLowerCase(), JSON.stringify(questions), { ex: 86400 });
-    await redis.set(statusKey, JSON.stringify({ status: 'success', questionCount: questions.length, generatedAt: new Date().toISOString() }), { ex: 86400 });
+    await redis.set('pending:' + today + ':' + cat.toLowerCase(), JSON.stringify(questions), { ex: 604800 });
+    await redis.set(statusKey, JSON.stringify({ status: 'success', questionCount: questions.length, generatedAt: new Date().toISOString() }), { ex: 604800 });
 
     const headlines = questions.map((q: any) => q.headline).filter((h: string) => h);
     await saveHeadlines(cat.toLowerCase(), headlines);
 
     return NextResponse.json({ success: true, category: cat, questionsGenerated: questions.length });
   } catch (e: any) {
-    await redis.set(statusKey, JSON.stringify({ status: 'failed', error: e.message, failedAt: new Date().toISOString() }), { ex: 86400 }).catch(() => {});
+    await redis.set(statusKey, JSON.stringify({ status: 'failed', error: e.message, failedAt: new Date().toISOString() }), { ex: 604800 }).catch(() => {});
     return NextResponse.json({ success: false, category: cat, error: e.message });
   }
 }
