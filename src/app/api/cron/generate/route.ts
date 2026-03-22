@@ -23,6 +23,7 @@ function stripCitations(text: string): string {
   return text.replace(/<\/?cite[^>]*>/g, '').replace(/<\/?antml:cite[^>]*>/g, '');
 }
 
+// ─── Repeat prevention: load recent headlines ───
 async function getRecentHeadlines(category: string): Promise<string[]> {
   try {
     const raw = await redis.get('recent-headlines:' + category);
@@ -43,6 +44,63 @@ async function saveHeadlines(category: string, newHeadlines: string[]) {
   } catch {}
 }
 
+// ─── Robust JSON parser: tries multiple strategies ───
+function extractQuizJSON(rawText: string): any[] | null {
+  const cleaned = rawText.replace(/```json|```/g, '').trim();
+
+  // Strategy 1: Direct JSON.parse
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+
+  // Strategy 2: Regex extract array
+  const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try {
+      return JSON.parse(arrayMatch[0]);
+    } catch {}
+  }
+
+  // Strategy 3: Bracket matching
+  const bracketIdx = cleaned.indexOf('[');
+  if (bracketIdx >= 0) {
+    let depth = 0;
+    for (let i = bracketIdx; i < cleaned.length; i++) {
+      if (cleaned[i] === '[') depth++;
+      if (cleaned[i] === ']') depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(cleaned.substring(bracketIdx, i + 1));
+        } catch {}
+        break;
+      }
+    }
+
+    // Strategy 3b: If bracket matching failed, try truncating at the last complete object
+    const lastGoodClose = cleaned.lastIndexOf('}');
+    if (lastGoodClose > bracketIdx) {
+      try {
+        return JSON.parse(cleaned.substring(bracketIdx, lastGoodClose + 1) + ']');
+      } catch {}
+    }
+  }
+
+  // Strategy 4: Extract individual objects
+  const objectMatches = cleaned.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+  const objects: any[] = [];
+  for (const match of objectMatches) {
+    try {
+      const obj = JSON.parse(match[0]);
+      if (obj.question && obj.options) objects.push(obj);
+    } catch {}
+  }
+  if (objects.length >= 3) return objects;
+
+  return null;
+}
+
+// ─── Quality rules added to prompt ───
 const QUALITY_RULES = `
 QUALITY CHECKS (critical — follow these strictly):
 - Every geographic detail in the question MUST match the correct answer. If the answer is Cuba, do NOT say "Middle East" in the question. If the answer is a European country, do NOT say "Asian nation."
@@ -56,6 +114,7 @@ async function generateQuiz(category: string) {
   const isPolitics = category.startsWith('politics:');
   const countryName = isPolitics ? POLITICS_LABELS[category] : null;
 
+  // Get recent headlines to avoid repeats
   const recentHeadlines = await getRecentHeadlines(category);
   const avoidSection = recentHeadlines.length > 0
     ? '\n\nDo NOT repeat these recent topics — find DIFFERENT stories or ask about a DIFFERENT angle if the same story is still ongoing:\n' + recentHeadlines.map(h => '- ' + h).join('\n')
@@ -81,26 +140,47 @@ async function generateQuiz(category: string) {
   });
 
   const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error('[API Error] ' + data.error.message);
 
-  const text = data.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
-  const cleaned = text.replace(/```json|```/g, '').trim();
-  const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error('No quiz data');
+  const textBlocks = data.content?.filter((b: any) => b.type === 'text') || [];
+  const text = textBlocks.map((b: any) => b.text).join('');
 
-  const parsed = JSON.parse(jsonMatch[0]);
-  return parsed
-    .filter((q: any) => q.question && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === 'number')
+  if (!text || text.trim().length === 0) {
+    throw new Error('[Empty Response] No text content returned from API');
+  }
+
+  // Use robust parser instead of single regex
+  const parsed = extractQuizJSON(text);
+  if (!parsed) {
+    console.error('[generate] Failed to parse JSON for ' + category + '. Raw (first 500): ' + text.substring(0, 500));
+    throw new Error('[Parse Error] Could not extract quiz JSON from response');
+  }
+
+  const validated = parsed
+    .filter((q: any) =>
+      q.question &&
+      Array.isArray(q.options) &&
+      q.options.length === 4 &&
+      typeof q.correct === 'number' &&
+      q.correct >= 0 &&
+      q.correct <= 3
+    )
     .map((q: any) => ({
       ...q,
       question: stripCitations(q.question),
-      explanation: stripCitations(q.explanation),
-      headline: stripCitations(q.headline),
+      explanation: stripCitations(q.explanation || ''),
+      headline: stripCitations(q.headline || 'News Quiz'),
       perspective: stripCitations(q.perspective || ''),
       context: stripCitations(q.context || ''),
       funFact: stripCitations(q.funFact || ''),
       options: q.options.map((o: string) => stripCitations(o)),
     }));
+
+  if (validated.length < 3) {
+    throw new Error('[Validation Error] Only ' + validated.length + ' valid questions (need at least 3)');
+  }
+
+  return validated;
 }
 
 export const maxDuration = 60;
@@ -127,6 +207,7 @@ export async function GET(request: Request) {
     await redis.set('pending:' + today + ':' + cat.toLowerCase(), JSON.stringify(questions), { ex: 604800 });
     await redis.set(statusKey, JSON.stringify({ status: 'success', questionCount: questions.length, generatedAt: new Date().toISOString() }), { ex: 604800 });
 
+    // Save headlines for repeat prevention
     const headlines = questions.map((q: any) => q.headline).filter((h: string) => h);
     await saveHeadlines(cat.toLowerCase(), headlines);
 
