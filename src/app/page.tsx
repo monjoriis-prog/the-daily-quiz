@@ -265,9 +265,6 @@ export default function Home() {
     <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "'Georgia', serif" }}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-        @keyframes logoFadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes logoDrawLine { from { width:0; } to { width:180px; } }
-        @keyframes logoShimmer { 0% { background-position:-200px 0; } 100% { background-position:200px 0; } }
         @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         @keyframes expandDown { from { opacity:0; max-height:0; } to { opacity:1; max-height:200px; } }
         @keyframes pulse { 0%,100% { opacity:.4; } 50% { opacity:1; } }
@@ -350,9 +347,8 @@ export default function Home() {
           <div>
             <div className="text-center pt-12 pb-5 border-b-2 border-gray-900">
               <p className="text-xs font-semibold tracking-widest text-gray-400 mb-3 font-sans uppercase">{today}</p>
-              <div style={{marginBottom:'6px'}}><span style={{fontFamily:"'DM Sans',sans-serif",fontSize:'44px',fontWeight:800,color:'#111',letterSpacing:'-1px',display:'inline-block',animation:'logoFadeUp 0.4s ease forwards'}}>NEWZ</span><span style={{fontFamily:"'DM Sans',sans-serif",fontSize:'44px',fontWeight:800,color:'#F59E0B',letterSpacing:'-1px',display:'inline-block',animation:'logoFadeUp 0.4s ease 0.2s forwards',opacity:0}}>PLAY</span></div>
-                <div style={{height:'2px',background:'linear-gradient(90deg,transparent,#F59E0B,transparent)',backgroundSize:'200px 100%',animation:'logoDrawLine 0.5s ease 0.5s forwards, logoShimmer 1.5s ease-in-out 0.6s infinite',width:0,borderRadius:'1px',margin:'0 auto 10px'}} />
-              <p style={{fontFamily:""Georgia",serif",fontStyle:"italic",fontSize:"14px",color:"#737373",animation:"logoFadeUp 0.4s ease 1s forwards",opacity:0}}>play the news.</p>
+              <h1 className="text-5xl font-bold mb-1 tracking-tight">Newzplay</h1>
+              <p className="text-sm text-gray-400 font-sans">Play the news.</p>
             </div>
 
             {stats.gamesPlayed > 0 && (
