@@ -3,41 +3,41 @@ import StoreKit
 
 @objc(SubscriptionPlugin)
 public class SubscriptionPlugin: CAPPlugin, CAPBridgedPlugin {
+
+    // These 3 properties tell Capacitor how to find and call our plugin
     public let identifier = "SubscriptionPlugin"
     public let jsName = "SubscriptionPlugin"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "getStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getSubscriptionStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getPrice", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise)
     ]
-    
-    @objc func getStatus(_ call: CAPPluginCall) {
+
+    // Called by the web app to check if user has an active subscription
+    @objc func getSubscriptionStatus(_ call: CAPPluginCall) {
         Task { @MainActor in
-            await StoreManager.shared.updateSubscriptionStatus()
-            call.resolve(["isSubscribed": StoreManager.shared.isSubscribed])
+            let isActive = await StoreManager.shared.isSubscriptionActive()
+            call.resolve(["isActive": isActive])
         }
     }
-    
+
+    // Called when user taps "Subscribe" in the web app
     @objc func purchase(_ call: CAPPluginCall) {
         Task { @MainActor in
-            let success = await StoreManager.shared.purchase()
-            call.resolve(["success": success, "isSubscribed": StoreManager.shared.isSubscribed])
+            do {
+                let success = try await StoreManager.shared.purchase()
+                call.resolve(["success": success])
+            } catch {
+                call.reject("Purchase failed: \(error.localizedDescription)")
+            }
         }
     }
-    
+
+    // Called when user taps "Restore Purchases" in the web app
     @objc func restore(_ call: CAPPluginCall) {
         Task { @MainActor in
-            await StoreManager.shared.restore()
-            call.resolve(["isSubscribed": StoreManager.shared.isSubscribed])
-        }
-    }
-    
-    @objc func getPrice(_ call: CAPPluginCall) {
-        Task { @MainActor in
-            await StoreManager.shared.loadProducts()
-            let price = StoreManager.shared.products.first?.displayPrice ?? "$4.99"
-            call.resolve(["price": price])
+            let restored = await StoreManager.shared.restore()
+            call.resolve(["restored": restored])
         }
     }
 }

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+body {
+  padding-top: env(safe-area-inset-top);
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

@@ -18,6 +18,7 @@
 		58C2E3642F70621200DF9DA9 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 58C2E3632F70621200DF9DA9 /* StoreKit.framework */; };
 		58C2E3672F7069ED00DF9DA9 /* SubscriptionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C2E3662F7069ED00DF9DA9 /* SubscriptionPlugin.swift */; };
 		58C2E3682F7069ED00DF9DA9 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C2E3652F7069ED00DF9DA9 /* StoreManager.swift */; };
+		58C2E36A2F707C6700DF9DA9 /* MyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C2E3692F707C6700DF9DA9 /* MyViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		58C2E3632F70621200DF9DA9 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		58C2E3652F7069ED00DF9DA9 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		58C2E3662F7069ED00DF9DA9 /* SubscriptionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionPlugin.swift; sourceTree = "<group>"; };
+		58C2E3692F707C6700DF9DA9 /* MyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyViewController.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -70,6 +72,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				58C2E3692F707C6700DF9DA9 /* MyViewController.swift */,
 				58C2E3652F7069ED00DF9DA9 /* StoreManager.swift */,
 				58C2E3662F7069ED00DF9DA9 /* SubscriptionPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -175,6 +178,7 @@
 			files = (
 				58C2E3672F7069ED00DF9DA9 /* SubscriptionPlugin.swift in Sources */,
 				58C2E3682F7069ED00DF9DA9 /* StoreManager.swift in Sources */,
+				58C2E36A2F707C6700DF9DA9 /* MyViewController.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

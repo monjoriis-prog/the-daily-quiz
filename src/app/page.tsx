@@ -484,7 +484,7 @@ export default function Home() {
                 Unlock All Categories — $4.99/mo
               </button>
             )}
-            <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily at 6 PM EST</p>
+            <p className="text-center py-8 text-xs text-gray-300 font-sans">Everyone plays the same quiz · Refreshes daily</p>
           </div>
         )}
 
